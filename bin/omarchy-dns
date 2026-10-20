@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# omarchy:summary=Show or change the system DNS provider
+# omarchy:group=setup
+# omarchy:name=dns-current
+# omarchy:hidden=true
+
+if (($# > 0)); then
+  exec omarchy-setup-dns "$@"
+fi
+
+conf=/etc/systemd/resolved.conf
+if [[ ! -r $conf ]]; then
+  echo "DHCP"
+  exit 0
+fi
+
+dns=$(grep -E '^DNS=' "$conf" | head -n1 || true)
+if [[ -z $dns ]]; then
+  echo "DHCP"
+elif [[ $dns == *cloudflare-dns.com* ]]; then
+  echo "Cloudflare"
+elif [[ $dns == *dns.google* ]]; then
+  echo "Google"
+else
+  echo "Custom"
+fi

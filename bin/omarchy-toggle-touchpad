@@ -19,14 +19,22 @@ reload() {
 enable() {
   rm -f "$STATE_CONF"
   reload
-  omarchy-swayosd-client --custom-icon input-touchpad-symbolic --custom-message "Touchpad enabled"
+  if omarchy-shell shell ping >/dev/null 2>&1; then
+    omarchy-osd -i touchpad -m "Touchpad enabled"
+  else
+    omarchy-swayosd-client --custom-icon input-touchpad-symbolic --custom-message "Touchpad enabled"
+  fi
 }
 
 disable() {
   mkdir -p "$(dirname "$STATE_CONF")"
   printf 'device_rule=name:%s,send_events_mode:1\n' "$device" >"$STATE_CONF"
   reload
-  omarchy-swayosd-client --custom-icon touchpad-disabled-symbolic --custom-message "Touchpad disabled"
+  if omarchy-shell shell ping >/dev/null 2>&1; then
+    omarchy-osd -i touchpad -m "Touchpad disabled"
+  else
+    omarchy-swayosd-client --custom-icon touchpad-disabled-symbolic --custom-message "Touchpad disabled"
+  fi
 }
 
 case "${1:-toggle}" in

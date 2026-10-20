@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# omarchy:summary=Focus the first Mango client whose app id matches
+# omarchy:args=<app-id>
+# omarchy:hidden=true
+
+app=${1:-}
+[[ -n $app ]] || exit 1
+
+id=$(mmsg get all-clients | jq -r --arg app "$app" '
+  .clients[] | select(((.appid // "") | ascii_downcase) == ($app | ascii_downcase)) | .id
+' | head -n 1)
+
+[[ -n $id ]] && mmsg dispatch focusid client,"$id"

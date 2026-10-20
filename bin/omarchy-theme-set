@@ -49,16 +49,30 @@ if [[ $OMARCHY_THEME_SKIP_BACKGROUND != "1" ]]; then
   omarchy-theme-bg-next
 fi
 
-# Restart components to apply new theme
+# Quattro loads the palette and shell.toml over IPC so it does not need a
+# restart when a theme changes.
+if omarchy-shell shell ping >/dev/null 2>&1; then
+  colors_payload=$([[ -f $CURRENT_THEME_PATH/colors.toml ]] && base64 -w 0 "$CURRENT_THEME_PATH/colors.toml")
+  shell_payload=$([[ -f $CURRENT_THEME_PATH/shell.toml ]] && base64 -w 0 "$CURRENT_THEME_PATH/shell.toml")
+  omarchy-shell -q shell applyTheme "$colors_payload" "$shell_payload" || true
+fi
+
+# Restart legacy components only when they are actually running. Quattro
+# owns the bar, OSD, and notifications, so starting those here would leave
+# duplicates behind.
 if pgrep -x waybar >/dev/null; then
   omarchy-restart-waybar
 fi
-omarchy-restart-swayosd
+if pgrep -x swayosd-server >/dev/null; then
+  omarchy-restart-swayosd
+fi
+if pgrep -x mako >/dev/null; then
+  omarchy-restart-mako
+fi
 omarchy-restart-terminal
 omarchy-restart-mango
 omarchy-restart-btop
 omarchy-restart-opencode
-omarchy-restart-mako
 omarchy-restart-helix
 
 # Change app-specific themes

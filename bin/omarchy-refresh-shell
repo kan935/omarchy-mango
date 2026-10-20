@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Reset the Quattro shell configuration to defaults
+# omarchy:group=refresh
+# omarchy:examples=omarchy refresh shell
+
+omarchy-refresh-config omarchy/shell.json
+omarchy-restart-shell

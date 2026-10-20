@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# omarchy:summary=Restart the Omarchy Quickshell desktop
+# omarchy:examples=omarchy restart shell
+
+OMARCHY_PATH="${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+export OMARCHY_PATH
+
+config_dir="$OMARCHY_PATH/shell"
+[[ -f $config_dir/shell.qml ]] || { echo "Omarchy shell config not found: $config_dir" >&2; exit 1; }
+
+if omarchy-shell lock status 2>/dev/null | jq -e '.secure or .requested' >/dev/null 2>&1; then
+  echo "Refusing to restart Omarchy shell while the session is locked." >&2
+  exit 1
+fi
+
+while timeout 30 quickshell kill -p "$config_dir" --any-display >/dev/null 2>&1; do :; done
+
+setsid omarchy-launch-shell >/dev/null 2>&1 &
+
+deadline=$((SECONDS + 60))
+while (( SECONDS < deadline )); do
+  if omarchy-shell shell ping >/dev/null 2>&1; then
+    exit 0
+  fi
+  sleep 0.1
+done
+
+echo "Omarchy shell did not become ready after restart." >&2
+exit 1

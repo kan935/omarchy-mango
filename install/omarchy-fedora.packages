@@ -10,6 +10,7 @@
 
 # Compositor and desktop shell
 mangowm
+quickshell
 waybar
 walker
 elephant
@@ -36,6 +37,8 @@ libnotify
 xorg-x11-server-Xwayland
 qt5-qtwayland
 qt6-qtwayland
+qt6-qtimageformats
+libxkbcommon-utils
 
 # Input, audio, and hardware controls
 brightnessctl
@@ -61,6 +64,8 @@ satty
 wf-recorder
 tesseract
 tesseract-langpack-eng
+zbar
+qrencode
 ImageMagick
 # ffmpeg-free is the Fedora package; RPM Fusion's full `ffmpeg` package
 # conflicts with it. The installer accepts either one.

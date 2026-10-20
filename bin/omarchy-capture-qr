@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# omarchy:summary=Capture a QR code from the screen and copy its contents
+# omarchy:group=capture
+# omarchy:name=qr
+# omarchy:aliases=omarchy screenshot qr
+
+set -euo pipefail
+
+if omarchy-cmd-missing grim || omarchy-cmd-missing slurp; then
+  notify-send "QR capture needs grim and slurp" -u critical
+  exit 1
+fi
+
+if omarchy-cmd-missing zbarimg; then
+  notify-send "Install zbar to read QR codes" -u critical
+  exit 1
+fi
+
+tmp=$(mktemp --suffix=.png)
+trap 'rm -f "$tmp"' EXIT
+
+if ! geometry=$(slurp 2>/dev/null) || [[ -z $geometry ]]; then
+  exit 0
+fi
+
+grim -g "$geometry" "$tmp"
+
+text=$(zbarimg --quiet --raw "$tmp" 2>/dev/null | sed -n '1p')
+if [[ -z $text ]]; then
+  notify-send "No QR code found" -t 2000
+  exit 1
+fi
+
+if omarchy-cmd-present wl-copy; then
+  printf '%s' "$text" | wl-copy
+  notify-send "QR code copied" "${text:0:120}"
+else
+  notify-send "QR code" "$text" -t 5000
+fi

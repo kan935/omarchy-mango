@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# omarchy:summary=Configure the Omarchy Quattro bar
+# omarchy:group=bar
+# omarchy:args=position <top|bottom|left|right> | transparent <true|false|toggle>
+# omarchy:examples=omarchy bar position top | omarchy bar transparent toggle
+
+set -euo pipefail
+
+usage() {
+  cat <<USAGE
+Usage: omarchy bar <command> [args...]
+
+  position <top|bottom|left|right>     Bar position
+  transparent <true|false|toggle>      Bar transparency
+USAGE
+}
+
+fail() {
+  echo "omarchy bar: $*" >&2
+  exit 1
+}
+
+config_path="$HOME/.config/omarchy/shell.json"
+default_path="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/config/omarchy/shell.json"
+
+read_config() {
+  if [[ -s $config_path ]]; then
+    cat "$config_path"
+    return
+  fi
+
+  local effective=""
+  if effective=$(omarchy-shell shell listShellConfig 2>/dev/null) && jq -e '.version == 1' >/dev/null 2>&1 <<<"$effective"; then
+    printf '%s\n' "$effective"
+    return
+  fi
+
+  if [[ -f $default_path ]]; then
+    cat "$default_path"
+    return
+  fi
+
+  printf '%s\n' '{"version":1,"bar":{}}'
+}
+
+commit() {
+  local filter="$1"
+  shift
+
+  local current updated tmp
+  current=$(read_config)
+  updated=$(jq "$@" "$filter" <<<"$current")
+  tmp=$(mktemp "$config_path.XXXXXX")
+  printf '%s\n' "$updated" >"$tmp"
+  mv -f "$tmp" "$config_path"
+
+  omarchy-shell -q shell reloadConfig >/dev/null 2>&1 || true
+}
+
+cmd_position() {
+  (($# == 1)) || fail "position takes a single value"
+  local position="$1"
+  [[ $position =~ ^(top|bottom|left|right)$ ]] || fail "position must be top, bottom, left, or right"
+  mkdir -p "$(dirname "$config_path")"
+  commit '.bar.position = $position' --arg position "$position"
+  echo "Bar position set to $position"
+}
+
+cmd_transparent() {
+  (($# == 1)) || fail "transparent takes a single value"
+  local transparent="$1"
+  [[ $transparent =~ ^(true|false|toggle)$ ]] || fail "transparent must be true, false, or toggle"
+  mkdir -p "$(dirname "$config_path")"
+
+  if [[ $transparent == "toggle" ]]; then
+    commit '.bar.transparent = (.bar.transparent != true)'
+    echo "Bar transparency toggled"
+  else
+    commit '.bar.transparent = $transparent' --argjson transparent "$transparent"
+    echo "Bar transparency set to $transparent"
+  fi
+}
+
+case "${1:-}" in
+  position)
+    shift
+    cmd_position "$@"
+    ;;
+  transparent)
+    shift
+    cmd_transparent "$@"
+    ;;
+  -h | --help | help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+esac

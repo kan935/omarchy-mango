@@ -78,6 +78,18 @@ install_packages() {
 
   [[ -f $package_file ]] || die "Missing package list: $package_file"
 
+  # Quickshell is the Quattro desktop shell. Fedora does not carry it in its
+  # main repositories, so enable the maintained COPR when it is not installed.
+  if ! rpm -q quickshell >/dev/null 2>&1; then
+    sudo -v
+    # dnf5's copr command lives in dnf5-plugins, which a minimal Fedora
+    # installation may not include yet.
+    if ! dnf copr --help >/dev/null 2>&1; then
+      sudo dnf install -y dnf5-plugins
+    fi
+    sudo dnf copr enable -y errornointernet/quickshell
+  fi
+
   package_installed() {
     case "$1" in
     ffmpeg-free)
@@ -156,6 +168,8 @@ copy_user_config() {
   backup_conflicts
   cp -a "$SOURCE_DIR/config/." "$CONFIG_DIR/"
 
+  # Keep Walker available for the automatic legacy fallback. The Quattro
+  # session stops the service and closes Walker during startup.
   mkdir -p "$CONFIG_DIR/autostart" "$CONFIG_DIR/systemd/user/app-walker@autostart.service.d"
   cp "$SOURCE_DIR/default/walker/walker.desktop" "$CONFIG_DIR/autostart/walker.desktop"
   cp "$SOURCE_DIR/default/walker/restart.conf" \
@@ -176,6 +190,12 @@ EOF
   mkdir -p "$HOME/.local/share/fonts"
   cp -f "$OMARCHY_PATH/config/omarchy.ttf" "$HOME/.local/share/fonts/omarchy.ttf"
   command -v fc-cache >/dev/null 2>&1 && fc-cache -f >/dev/null 2>&1 || true
+}
+
+install_lock_auth() {
+  log "Configuring lock screen authentication"
+  OMARCHY_INSTALL_USER="$USER" "$OMARCHY_PATH/bin/omarchy-apply-lock" ||
+    warn "Could not configure lock screen authentication"
 }
 
 install_session_file() {
@@ -230,7 +250,7 @@ verify_install() {
   local failed=false
   local command=""
 
-  for command in mango mmsg waybar walker elephant swaylock swayidle grim slurp wf-recorder; do
+  for command in mango mmsg quickshell qs waybar walker elephant swaylock swayidle grim slurp wf-recorder; do
     if ! command -v "$command" >/dev/null 2>&1; then
       warn "Required command not found: $command"
       failed=true
@@ -262,6 +282,7 @@ copy_program_files
 copy_user_config
 install_session_file
 prepare_theme
+install_lock_auth
 mark_migrations_applied
 
 cat <<EOF

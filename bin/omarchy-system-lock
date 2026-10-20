@@ -5,7 +5,11 @@
 # omarchy:name=lock
 # omarchy:examples=omarchy system lock
 
-if ! pgrep -x swaylock >/dev/null; then
+locked_with_shell=false
+lock_result=$(omarchy-shell lock lock 2>/dev/null || true)
+if [[ $lock_result == "ok" ]]; then
+  locked_with_shell=true
+elif ! pgrep -x swaylock >/dev/null; then
   (
     config="$HOME/.config/omarchy/current/theme/swaylock.conf"
     if [[ -f $config ]]; then
@@ -31,7 +35,11 @@ pkill -f org.omarchy.screensaver
 if [[ ${OMARCHY_LOCK_ONLY:-false} != "true" ]]; then
   (
     sleep 3
-    pgrep -x swaylock >/dev/null || exit 0
+    if $locked_with_shell; then
+      [[ $(omarchy-shell lock isLocked 2>/dev/null) == "true" ]] || exit 0
+    else
+      pgrep -x swaylock >/dev/null || exit 0
+    fi
     omarchy-brightness-keyboard off
     omarchy-brightness-display off
   ) &

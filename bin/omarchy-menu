@@ -2,6 +2,15 @@
 
 # omarchy:summary=Launch the Omarchy Menu or takes a parameter to jump straight to a submenu.
 
+# Quattro owns the menu in the primary session. Keep the legacy Walker/TUI
+# implementation below for fallback sessions where the shell is unavailable.
+if [[ -z ${OMARCHY_LEGACY_MENU:-} ]] && omarchy-shell shell ping >/dev/null 2>&1; then
+  case "${1:-}" in
+    toggle | summon | close | refresh | ping) exec omarchy-menu-quattro "$@" ;;
+    *) exec omarchy-menu-quattro toggle "${1:-root}" ;;
+  esac
+fi
+
 # Set to true when going directly to a submenu, so we can exit directly
 BACK_TO_EXIT=false
 

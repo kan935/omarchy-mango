@@ -1,58 +1,93 @@
 #!/bin/bash
 
-# omarchy:summary=Adjust brightness on the most likely display device.
-# omarchy:args=<+N%|N%-|N%|off|on>
-# omarchy:examples=omarchy brightness display +5% | omarchy brightness display 5%- | omarchy brightness display 50% | omarchy brightness display off | omarchy brightness display on
+# omarchy:summary=Show or adjust brightness on the focused display (MangoWC)
+# omarchy:args=[--no-osd] [--monitor name] [+N%|N%-|N%|off|on]
+# omarchy:examples=omarchy brightness display | omarchy brightness display +5% | omarchy brightness display --monitor eDP-1 50%
 
-step="${1:-+5%}"
+set -euo pipefail
 
-# Start with the first possible output, then refine to the most likely given an order heuristic.
-device="$(ls -1 /sys/class/backlight 2>/dev/null | head -n1)"
-for candidate in amdgpu_bl* intel_backlight acpi_video*; do
-  if [[ -e /sys/class/backlight/$candidate ]]; then
-    device="$candidate"
+no_osd=0
+monitor=""
+
+while (( $# > 0 )); do
+  case "$1" in
+  --no-osd)
+    no_osd=1
+    shift
+    ;;
+  --monitor)
+    (( $# >= 2 )) || exit 1
+    monitor="$2"
+    shift 2
+    ;;
+  *)
     break
-  fi
+    ;;
+  esac
 done
 
-monitors() {
-  mmsg get all-monitors | jq -r '.monitors[].name'
-}
-
-if [[ $step == "off" ]]; then
-  for monitor in $(monitors); do
-    mmsg dispatch "sleep_monitor,$monitor" >/dev/null 2>&1
-  done
-  exit 0
-elif [[ $step == "on" ]]; then
-  for monitor in $(monitors); do
-    mmsg dispatch "wakeup_monitor,$monitor" >/dev/null 2>&1
-  done
-  exit 0
+# Mango exposes the pointer's monitor; use it when the caller did not pass one.
+if [[ -z $monitor ]]; then
+  monitor=$(mmsg get cursorpos 2>/dev/null | jq -r '.monitor // ""')
 fi
 
-if omarchy-mango-monitor-focused-apple; then
+step="${1:-}"
+
+# Apple Studio Display / Pro Display XDR brightness goes through asdcontrol,
+# not the generic panel backlight.
+if [[ -z $monitor && -n $step && $step != "off" && $step != "on" ]] && omarchy-mango-monitor-focused-apple; then
   omarchy-brightness-display-apple "$step"
   exit
 fi
 
-if [[ -z $device ]]; then
-  notify-send -u low "No backlight device found"
+# DPMS is a whole-output operation and does not need a backlight device.
+if [[ $step == "off" || $step == "on" ]]; then
+  while IFS= read -r output; do
+    [[ -n $output ]] || continue
+    if [[ $step == "off" ]]; then
+      mmsg dispatch "sleep_monitor,$output" >/dev/null 2>&1 || true
+    else
+      mmsg dispatch "wakeup_monitor,$output" >/dev/null 2>&1 || true
+    fi
+  done < <(mmsg get all-monitors 2>/dev/null | jq -r '.monitors[].name')
+  exit 0
+fi
+
+# Only the internal panel has a generic backlight. External DDC/CI displays
+# are intentionally reported as unavailable rather than silently doing nothing.
+if [[ ! $monitor =~ ^(eDP|LVDS|DSI)- ]]; then
+  echo "unavailable"
   exit 1
 fi
 
-# Current brightness percentage
-current=$(brightnessctl -d "$device" -m | cut -d',' -f4 | tr -d '%')
+device="$(omarchy-hw-display 2>/dev/null || true)"
+if [[ -z $device ]]; then
+  echo "unavailable" >&2
+  exit 1
+fi
 
-# Apply non-uniform step size: 1% steps if at or below 5%, otherwise set an
-# absolute target percentage to avoid raw backlight rounding causing uneven OSD steps.
+backlight_brightness() {
+  brightnessctl -d "$device" -m 2>/dev/null | awk -F, '{ gsub("%", "", $4); print $4; found=1 } END { exit !found }'
+}
+
+if (( $# == 0 )); then
+  backlight_brightness
+  exit
+fi
+
+# Avoid overlapping brightness key events racing the hardware.
+exec {lock_fd}>"${XDG_RUNTIME_DIR:-/tmp}/omarchy-brightness-display.lock"
+flock -n "$lock_fd" || exit 0
+
+current=$(backlight_brightness) || exit 1
+
+# Match the shell's non-uniform step behavior: 1% steps at the low end.
 if [[ $step == "+5%" ]]; then
   if (( current < 5 )); then
     (( target = current + 1 ))
   else
     (( target = current + 5 ))
   fi
-
   (( target > 100 )) && target=100
   step="$target%"
 elif [[ $step == "5%-" ]]; then
@@ -61,13 +96,12 @@ elif [[ $step == "5%-" ]]; then
   else
     (( target = current - 5 ))
   fi
-
   (( target < 1 )) && target=1
   step="$target%"
 fi
 
-# Set the actual brightness of the display device.
 brightnessctl -d "$device" set "$step" >/dev/null
 
-# Use SwayOSD to display the new brightness setting.
-omarchy-swayosd-brightness "$(brightnessctl -d "$device" -m | cut -d',' -f4 | tr -d '%')"
+if (( ! no_osd )); then
+  omarchy-swayosd-brightness "$(backlight_brightness)" >/dev/null 2>&1 || true
+fi

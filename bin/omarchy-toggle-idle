@@ -1,6 +1,15 @@
 #!/bin/bash
 
-# omarchy:summary=Toggle idle locking with swayidle
+# omarchy:summary=Toggle idle locking (Quattro when running, swayidle fallback)
+
+if omarchy-shell shell ping >/dev/null 2>&1; then
+  state=$(omarchy-shell idle toggle)
+  case "$state" in
+    enabled | *'"enabled":true'*) notify-send -u low "󱫖    Now locking computer when idle" ;;
+    disabled | *'"enabled":false'*) notify-send -u low "󱫖    Stop locking computer when idle" ;;
+  esac
+  exit 0
+fi
 
 if pgrep -x swayidle >/dev/null; then
   pkill -x swayidle

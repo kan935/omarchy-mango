@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Check for a fingerprint reader visible to fprintd
+# omarchy:group=hw
+# omarchy:name=fingerprint
+
+omarchy-cmd-present fprintd-list || exit 1
+fprintd-list "$USER" 2>/dev/null | grep -q '^Device'

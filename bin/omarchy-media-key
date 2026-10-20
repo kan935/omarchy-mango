@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# omarchy:summary=Send a media key action to Quattro (playerctl fallback)
+# omarchy:args=<next|play-pause|previous>
+
+set -u
+
+action="${1:-}"
+case "$action" in
+  next) shell_action="next" ;;
+  play-pause) shell_action="playPause" ;;
+  previous) shell_action="previous" ;;
+  *)
+    echo "Usage: omarchy-media-key <next|play-pause|previous>" >&2
+    exit 1
+    ;;
+esac
+
+result=$(omarchy-shell media "$shell_action" 2>/dev/null || true)
+if [[ $result == "ok" ]]; then
+  exit 0
+fi
+
+case "$action" in
+  next) playerctl next ;;
+  play-pause) playerctl play-pause ;;
+  previous) playerctl previous ;;
+esac

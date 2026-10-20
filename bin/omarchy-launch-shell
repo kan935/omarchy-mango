@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# omarchy:summary=Launch the Omarchy Quickshell desktop
+# omarchy:hidden=true
+
+OMARCHY_PATH="${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+export OMARCHY_PATH
+
+[[ -f $OMARCHY_PATH/shell/shell.qml ]] || exit 1
+
+log_dir="${XDG_RUNTIME_DIR:-/tmp}/omarchy"
+mkdir -p "$log_dir"
+log="$log_dir/shell.log"
+
+attempts=0
+window_started=$SECONDS
+
+while true; do
+  QS_DISABLE_FILE_WATCHER=1 QS_NO_RELOAD_POPUP=1 \
+    quickshell -n -p "$OMARCHY_PATH/shell" >>"$log" 2>&1
+  status=$?
+
+  (( status == 0 )) && exit 0
+  mmsg get version >/dev/null 2>&1 || exit 0
+
+  if (( SECONDS - window_started > 60 )); then
+    attempts=0
+    window_started=$SECONDS
+  fi
+
+  if (( ++attempts > 5 )); then
+    logger -t omarchy-shell "Giving up after $attempts relaunches in under a minute."
+    exit 1
+  fi
+
+  logger -t omarchy-shell "Omarchy shell exited with status $status; relaunching."
+  sleep 1
+done

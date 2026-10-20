@@ -14,6 +14,18 @@ hex_to_rgb() {
   printf "%d,%d,%d" "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
 }
 
+# Mix two hex colors, e.g. 34% foreground over background.
+mix_hex() {
+  local fg="${1#\#}" bg="${2#\#}" pct="${3%\%}"
+  local fr=$((16#${fg:0:2})) fg_g=$((16#${fg:2:2})) fb=$((16#${fg:4:2}))
+  local br=$((16#${bg:0:2})) bg_g=$((16#${bg:2:2})) bb=$((16#${bg:4:2}))
+  printf "#%02x%02x%02x" $(((fr * pct + br * (100 - pct)) / 100)) $(((fg_g * pct + bg_g * (100 - pct)) / 100)) $(((fb * pct + bb * (100 - pct)) / 100))
+}
+
+color_value() {
+  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*[\"']\{0,1\}\(#[0-9A-Fa-f]\{6\}\).*/\1/p" "$COLORS_FILE" | head -n 1
+}
+
 # Only generate dynamic templates for themes with a colors.toml definition
 if [[ -f $COLORS_FILE ]]; then
   sed_script=$(mktemp)
@@ -31,6 +43,29 @@ if [[ -f $COLORS_FILE ]]; then
       echo "s|{{ ${key}_rgb }}|${rgb}|g"
     fi
   done <"$COLORS_FILE" >"$sed_script"
+
+  # Quattro's shell.toml uses a few derived colors that v3 themes do not
+  # define. Resolve them here rather than making every theme ship them.
+  red=$(color_value red)
+  [[ -n $red ]] || red=$(color_value color1)
+  if [[ -n $red ]]; then
+    printf 's|{{ red }}|%s|g\n' "$red" >>"$sed_script"
+  fi
+
+  accent=$(color_value accent)
+  [[ -n $accent ]] || accent=$(color_value color4)
+  foreground=$(color_value foreground)
+  [[ -n $foreground ]] || foreground=$(color_value color7)
+  background=$(color_value background)
+  [[ -n $background ]] || background=$(color_value color0)
+
+  if [[ -n $accent && -n $foreground ]]; then
+    printf 's|{{ shell_gradient hyprland_active_border accent }}|%s|g\n' "$accent" >>"$sed_script"
+    printf 's|{{ shell_gradient hyprland_active_border foreground }}|%s|g\n' "$foreground" >>"$sed_script"
+  fi
+  if [[ -n $foreground && -n $background ]]; then
+    printf 's|{{ mix foreground background 34%% }}|%s|g\n' "$(mix_hex "$foreground" "$background" 34)" >>"$sed_script"
+  fi
 
   shopt -s nullglob
 

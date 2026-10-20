@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Restart the PipeWire user audio service
+# omarchy:group=restart
+# omarchy:name=audio
+
+systemctl --user restart wireplumber.service 2>/dev/null ||
+  systemctl --user restart pipewire.service pipewire-pulse.service wireplumber.service
+
+notify-send -u low "Audio restarted"

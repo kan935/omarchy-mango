@@ -5,8 +5,22 @@
 sinks=$(pactl -f json list sinks | jq '[.[] | select((.ports | length == 0) or ([.ports[]? | .availability != "not available"] | any))]')
 sinks_count=$(echo "$sinks" | jq '. | length')
 
+show_osd() {
+  if omarchy-shell shell ping >/dev/null 2>&1; then
+    omarchy-osd -i "$1" -m "$2"
+    return
+  fi
+
+  local icon="$1"
+  if [[ $icon == volume-* ]]; then
+    icon="audio-volume-${icon#volume-}-symbolic"
+  fi
+
+  omarchy-swayosd-client --custom-message "$2" --custom-icon "$icon"
+}
+
 if (( sinks_count == 0 )); then
-  omarchy-swayosd-client --custom-message "No audio devices found"
+  show_osd volume-muted "No audio devices found"
   exit 1
 fi
 
@@ -50,13 +64,9 @@ else
   icon_state="high"
 fi
 
-next_sink_volume_icon="sink-volume-${icon_state}-symbolic"
-
 if [[ $next_sink_name != $current_sink_name ]]; then
   next_sink_wpid=$(echo "$next_sink" | jq -r '.properties."object.id"')
   wpctl set-default "$next_sink_wpid"
 fi
 
-omarchy-swayosd-client \
-  --custom-message "$next_sink_description" \
-  --custom-icon "$next_sink_volume_icon"
+show_osd "volume-$icon_state" "$next_sink_description"

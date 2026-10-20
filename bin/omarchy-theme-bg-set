@@ -20,6 +20,9 @@ fi
 # Create symlink to the new background
 ln -nsf "$BACKGROUND" "$CURRENT_BACKGROUND_LINK"
 
-# Kill existing swaybg and start new one
-pkill -x swaybg
-setsid uwsm-app -- swaybg -i "$CURRENT_BACKGROUND_LINK" -m fill >/dev/null 2>&1 &
+if omarchy-shell shell ping >/dev/null 2>&1; then
+  omarchy-shell -q background refresh >/dev/null 2>&1 || true
+else
+  pkill -x swaybg
+  setsid uwsm-app -- swaybg -i "$CURRENT_BACKGROUND_LINK" -m fill >/dev/null 2>&1 &
+fi

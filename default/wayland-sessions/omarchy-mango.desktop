@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Omarchy (Mango)
+Comment=Omarchy desktop session running on MangoWC
+DesktopNames=Mango;Omarchy
+Exec=sh -c "exec \"$HOME/.local/share/omarchy/bin/omarchy-mango-session\""
+TryExec=mango
+Type=Application

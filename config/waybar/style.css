@@ -30,6 +30,13 @@
   opacity: 0.5;
 }
 
+#custom-layout {
+  min-width: 12px;
+  margin: 0 7.5px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
 #cpu,
 #battery,
 #pulseaudio,

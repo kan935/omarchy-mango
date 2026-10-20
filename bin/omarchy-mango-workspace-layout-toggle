@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# omarchy:summary=Toggle the focused tag between the Dwindle and Scroller layouts
+
+current=$(mmsg get all-monitors | jq -r '.monitors[] | select(.active == true) | .layout_symbol' | head -n1)
+
+if [[ $current == "S" || $current == "VS" ]]; then
+  new_layout=dwindle
+  mmsg dispatch setlayout,dwindle >/dev/null
+else
+  new_layout=scroller
+  mmsg dispatch setlayout,scroller >/dev/null
+fi
+
+notify-send -u low "󱂬    Workspace layout set to $new_layout"

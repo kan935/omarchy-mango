@@ -2,18 +2,18 @@
 name: omarchy
 description: >
   REQUIRED for end-user customization of Linux desktop, window manager, or system config.
-  Use when editing ~/.config/hypr/, ~/.config/waybar/, ~/.config/walker/,
+  Use when editing ~/.config/mango/, ~/.config/waybar/, ~/.config/walker/,
   ~/.config/alacritty/, ~/.config/foot/, ~/.config/kitty/, ~/.config/ghostty/, ~/.config/mako/,
-  or ~/.config/omarchy/. Triggers: Hyprland, window rules, animations, keybindings,
+  or ~/.config/omarchy/. Triggers: Mango, MangoWC, window rules, animations, keybindings,
   monitors, gaps, borders, blur, opacity, waybar, walker, terminal config, themes,
   wallpaper, night light, idle, lock screen, screenshots, reminders, layer rules,
-  workspace settings, display config, and user-facing omarchy commands. Excludes Omarchy
+  workspace/tag settings, display config, and user-facing omarchy commands. Excludes Omarchy
   source development in ~/.local/share/omarchy/ and `omarchy dev` workflows.
 ---
 
 # Omarchy Skill
 
-Manage [Omarchy](https://omarchy.org/) Linux systems - a beautiful, modern, opinionated Arch Linux distribution with Hyprland.
+Manage [Omarchy](https://omarchy.org/) on **Fedora 44 with MangoWC**. This fork keeps Omarchy's themes, menus, and CLI while using Mango's native tags and IPC.
 
 This skill is for end-user customization on installed systems.
 It is not for contributing to Omarchy source code.
@@ -22,7 +22,7 @@ It is not for contributing to Omarchy source code.
 
 **ALWAYS invoke this skill for end-user requests involving ANY of these:**
 
-- Editing ANY file in `~/.config/hypr/` (window rules, animations, keybindings, monitors, etc.)
+- Editing ANY file in `~/.config/mango/` (window rules, animations, keybindings, monitors, etc.)
 - Editing ANY file in `~/.config/waybar/`, `~/.config/walker/`, `~/.config/mako/`
 - Editing terminal configs (alacritty, foot, kitty, ghostty)
 - Editing ANY file in `~/.config/omarchy/`
@@ -59,7 +59,7 @@ This directory contains Omarchy's source files managed by git. Any changes will 
 - Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
 - See default configs before customizing: `cat ~/.local/share/omarchy/config/waybar/config.jsonc`
 - Check stock theme files to copy for customization
-- Reference default hyprland settings: `cat ~/.local/share/omarchy/default/hypr/*`
+- Reference default Mango settings: `cat ~/.local/share/omarchy/default/mango/*`
 
 **Always use these safe locations instead:**
 - `~/.config/` - User configuration (safe to edit)
@@ -74,8 +74,8 @@ Omarchy is built on:
 
 | Component | Purpose | Config Location |
 |-----------|---------|-----------------|
-| **Arch Linux** | Base OS | `/etc/`, `~/.config/` |
-| **Hyprland** | Wayland compositor/WM | `~/.config/hypr/` |
+| **Fedora 44** | Base OS | `/etc/`, `~/.config/` |
+| **MangoWC** | Wayland compositor/WM | `~/.config/mango/` |
 | **Waybar** | Status bar | `~/.config/waybar/` |
 | **Walker** | App launcher | `~/.config/walker/` |
 | **Alacritty/Foot/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
@@ -125,28 +125,29 @@ Run `omarchy --help` for the full list. The most common groups:
 
 ## Configuration Locations
 
-### Hyprland (Window Manager)
+### MangoWC (Window Manager)
 
 ```
-~/.config/hypr/
-├── hyprland.conf      # Main config (sources others)
+~/.config/mango/
+├── config.conf        # Main config (sources defaults, theme, overrides)
 ├── bindings.conf      # Keybindings
 ├── monitors.conf      # Display configuration
-├── input.conf         # Keyboard/mouse settings
+├── input.conf         # Keyboard/mouse/touchpad settings
 ├── looknfeel.conf     # Appearance (gaps, borders, animations)
-├── envs.conf          # Environment variables
-├── autostart.conf     # Startup applications
-├── hypridle.conf      # Idle behavior (screen off, lock, suspend)
-├── hyprlock.conf      # Lock screen appearance
-└── hyprsunset.conf    # Night light / blue light filter
+├── autostart.conf     # Extra startup applications
+└── ~/.local/state/omarchy/toggles/mango/*.conf  # Persistent toggle snippets
 ```
 
+Idle and lock are handled by `swayidle` and `swaylock`; night light uses
+`gammastep`. Their state lives outside `~/.config/mango/`.
+
 **Key behaviors:**
-- Hyprland auto-reloads on config save (no restart needed for most changes)
-- Use `hyprctl reload` to force reload
-- After ANY Hyprland config change, validate with `hyprctl reload` followed by `hyprctl configerrors`
-- If `hyprctl configerrors` reports errors, address them and rerun validation until clean or until a real blocker is identified
-- Use `omarchy refresh hyprland` to reset to defaults
+- Mango does NOT watch config files. Run `omarchy restart mango`
+  (`mmsg dispatch reload_config`) after edits.
+- Validate before reloading: `mango -c ~/.config/mango/config.conf -p`
+- Use `omarchy refresh mango` to reset to defaults.
+- Use `mmsg get all-monitors` / `mmsg get all-clients` for state, not `hyprctl`.
+  A `hyprctl` compatibility shim exists for older scripts.
 
 ### Waybar (Status Bar)
 
@@ -190,15 +191,15 @@ For simple changes, edit files in `~/.config/`:
 
 ```bash
 # 1. Read current config
-cat ~/.config/hypr/bindings.conf
+cat ~/.config/mango/bindings.conf
 
 # 2. Backup before changes
-cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
+cp ~/.config/mango/bindings.conf ~/.config/mango/bindings.conf.bak.$(date +%s)
 
 # 3. Make changes with Edit tool
 
 # 4. Apply changes
-# - Hyprland: auto-reloads on save, but MUST validate with `hyprctl reload` and `hyprctl configerrors`
+# - Mango: validate with `mango -c ~/.config/mango/config.conf -p`, then `omarchy restart mango`
 # - Waybar: MUST restart with `omarchy restart waybar`
 # - Walker: MUST restart with `omarchy restart walker`
 # - Terminals: MUST restart with `omarchy restart terminal`
@@ -238,7 +239,7 @@ When customizations go wrong:
 ```bash
 # Reset specific config (creates backup automatically)
 omarchy refresh waybar
-omarchy refresh hyprland
+omarchy refresh mango
 
 # The refresh command:
 # 1. Backs up current config with timestamp
@@ -260,11 +261,11 @@ omarchy theme install <url>     # Install from git repo
 
 ### Keybindings
 
-Edit `~/.config/hypr/bindings.conf`. Format:
+Edit `~/.config/mango/bindings.conf`. Format:
 ```
-bind = SUPER, Return, exec, xdg-terminal-exec
-bind = SUPER, Q, killactive
-bind = SUPER SHIFT, E, exit
+bind=SUPER,Return,spawn,xdg-terminal-exec
+bind=SUPER,w,killclient
+bind=SUPER+SHIFT,q,quit
 ```
 
 View current bindings: `omarchy menu keybindings --print`
@@ -272,39 +273,44 @@ View current bindings: `omarchy menu keybindings --print`
 **IMPORTANT: When re-binding an existing key:**
 
 1. First check existing bindings: `omarchy menu keybindings --print`
-2. If the key is already bound, you MUST add an `unbind` directive BEFORE your new `bind`
-3. Inform the user what the key was previously bound to
+2. Mango has no `unbind`. Redefine the same modifier + key later in
+   `~/.config/mango/bindings.conf`; the last definition wins.
+3. Inform the user what the key was previously bound to.
 
-Example - rebinding SUPER+F (which is bound to fullscreen by default):
+Example - rebinding SUPER+F (fullscreen by default):
 ```
-# Unbind existing SUPER+F (was: fullscreen)
-unbind = SUPER, F
-# New binding for file manager
-bind = SUPER, F, exec, nautilus
+# SUPER+F is now file manager; this overrides the default fullscreen binding.
+bind=SUPER,f,spawn,nautilus
 ```
 
-Always tell the user: "Note: SUPER+F was previously bound to fullscreen. I've added an unbind directive to override it."
+Always tell the user: "Note: SUPER+F was previously bound to fullscreen. I've
+added a binding in ~/.config/mango/bindings.conf to override it."
 
 ### Display/Monitors
 
-Edit `~/.config/hypr/monitors.conf`. Format:
+Edit `~/.config/mango/monitors.conf`. Format:
 ```
-monitor = eDP-1, 1920x1080@60, 0x0, 1
-monitor = HDMI-A-1, 2560x1440@144, 1920x0, 1
+monitor_rule=name:^eDP-1$,width:1920,height:1080,refresh:60,x:0,y:0,scale:1
+monitor_rule=name:^HDMI-A-1$,width:2560,height:1440,refresh:144,x:1920,y:0,scale:1
 ```
 
-List monitors: `hyprctl monitors`
+Rules are first-match-wins. List monitors: `mmsg get all-monitors`.
+Never use negative coordinates if XWayland applications matter.
 
 ### Window Rules
 
-**CRITICAL: Hyprland window rules syntax changes frequently between versions.**
+**CRITICAL: Mango window rules use their own syntax.**
 
-Before writing ANY window rules, you MUST fetch the current documentation from the official Hyprland wiki:
-- https://github.com/hyprwm/hyprland-wiki/blob/main/content/Configuring/Window-Rules.md
+Before writing window rules, fetch the current documentation from the Mango wiki:
+- https://github.com/mangowm/mango/wiki/rules
 
-DO NOT rely on cached or memorized window rule syntax. The format has changed multiple times and using outdated syntax will cause errors or unexpected behavior.
+Window rules go in `~/.config/mango/windows.conf` (create it if missing) or a
+sourced file. The default rules live in
+`~/.local/share/omarchy/default/mango/windows.conf`.
 
-Window rules go in `~/.config/hypr/hyprland.conf` or a sourced file. Always verify the current syntax from the wiki first.
+Format: `window_rule=parameter:value,...,app_id:regex`. Rules are evaluated in
+order; `app_id` and `title` use regular expressions. There is no Hyprland-style
+`windowrulev2`.
 
 ### Fonts
 
@@ -341,7 +347,7 @@ omarchy refresh <app>
 
 # Refresh specific config file
 # config-file path is relative to ~/.config/
-# eg. `omarchy refresh config hypr/hyprlock.conf` will refresh ~/.config/hypr/hyprlock.conf
+# eg. `omarchy refresh config mango/looknfeel.conf` will refresh ~/.config/mango/looknfeel.conf
 omarchy refresh config <config-file>
 
 # Full reinstall of configs (nuclear option)
@@ -356,7 +362,7 @@ When user requests system changes:
 2. **Is it a config edit?** Edit in `~/.config/`, never `~/.local/share/omarchy/`
 3. **Is it a theme customization?** Create a NEW custom theme directory
 4. **Is it automation?** Use hooks in `~/.config/omarchy/hooks/`
-5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (or `omarchy pkg aur add <pkgs...>` for AUR-only packages)
+5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (Fedora `dnf`; the AUR does not exist here)
 6. **Unsure if command exists?** Run `omarchy commands` (or `omarchy <group> --help` for one group)
 
 ### Reminder Requests
@@ -380,10 +386,10 @@ This skill intentionally does not cover Omarchy source development. Do not use t
 ## Example Requests
 
 - "Change my theme to catppuccin" -> `omarchy theme set catppuccin`
-- "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, add `unbind` if needed, then add `bind` in `~/.config/hypr/bindings.conf`
-- "Configure my external monitor" -> Edit `~/.config/hypr/monitors.conf`
-- "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.conf`
-- "Set up night light to turn on at sunset" -> `omarchy toggle nightlight` or edit `~/.config/hypr/hyprsunset.conf`
+- "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, then add a later `bind=` line in `~/.config/mango/bindings.conf`
+- "Configure my external monitor" -> Edit `~/.config/mango/monitors.conf`
+- "Make the window gaps smaller" -> Edit `~/.config/mango/looknfeel.conf`
+- "Set up night light to turn on at sunset" -> `omarchy toggle nightlight` (gammastep)
 - "Set a reminder to pickup jack in 15 minutes" -> `omarchy reminder 15 "Pickup Jack"`
 - "Show my reminders" -> `omarchy reminder show`
 - "Clear all reminders" -> `omarchy reminder clear`

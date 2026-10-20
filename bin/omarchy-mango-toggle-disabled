@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# omarchy:summary=Check if a Mango toggle flag is currently disabled.
+# omarchy:args=<flag-name>
+
+[[ ! -f "$HOME/.local/state/omarchy/toggles/mango/$1.conf" ]]

@@ -15,17 +15,30 @@ for candidate in amdgpu_bl* intel_backlight acpi_video*; do
   fi
 done
 
+monitors() {
+  mmsg get all-monitors | jq -r '.monitors[].name'
+}
+
 if [[ $step == "off" ]]; then
-  hyprctl dispatch dpms off >/dev/null 2>&1
+  for monitor in $(monitors); do
+    mmsg dispatch "sleep_monitor,$monitor" >/dev/null 2>&1
+  done
   exit 0
 elif [[ $step == "on" ]]; then
-  hyprctl dispatch dpms on >/dev/null 2>&1
+  for monitor in $(monitors); do
+    mmsg dispatch "wakeup_monitor,$monitor" >/dev/null 2>&1
+  done
   exit 0
 fi
 
-if omarchy-hyprland-monitor-focused-apple; then
+if omarchy-mango-monitor-focused-apple; then
   omarchy-brightness-display-apple "$step"
   exit
+fi
+
+if [[ -z $device ]]; then
+  notify-send -u low "No backlight device found"
+  exit 1
 fi
 
 # Current brightness percentage

@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# omarchy:summary=Pop the focused window out as a floating, sticky window
+# omarchy:args=[width height x y]
+
+width=${1:-1300}
+height=${2:-900}
+x=${3:-}
+y=${4:-}
+
+active=$(mmsg get focusing-client 2>/dev/null)
+id=$(jq -r '.id // empty' <<<"$active")
+
+if [[ -z $id ]]; then
+  exit 0
+fi
+
+floating=$(jq -r '.is_floating' <<<"$active")
+global=$(jq -r '.is_global' <<<"$active")
+
+if [[ $floating == "true" && $global == "true" ]]; then
+  mmsg dispatch togglefloating client,"$id" >/dev/null
+  mmsg dispatch toggleglobal client,"$id" >/dev/null
+else
+  [[ $floating != "true" ]] && mmsg dispatch togglefloating client,"$id" >/dev/null
+  mmsg dispatch resizewin,"$width","$height" client,"$id" >/dev/null
+  if [[ -n $x && -n $y ]]; then
+    mmsg dispatch movewin,"$x","$y" client,"$id" >/dev/null
+  else
+    mmsg dispatch centerwin client,"$id" >/dev/null
+  fi
+  [[ $global != "true" ]] && mmsg dispatch toggleglobal client,"$id" >/dev/null
+fi

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# omarchy:summary=Reload the Mango configuration
+# omarchy:examples=omarchy restart mango
+
+mmsg dispatch reload_config

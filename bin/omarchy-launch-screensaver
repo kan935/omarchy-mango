@@ -1,13 +1,9 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the Omarchy screensaver in the default terminal on the system with the correct font configuration.
+# omarchy:summary=Launch the Omarchy screensaver in the default terminal on every monitor.
 
-if ! command -v tte &>/dev/null; then
-  exit 1
-fi
-
-# Exit early if screensave is already running
-pgrep -f org.omarchy.screensaver && exit 0
+# Exit early if the screensaver is already running
+pgrep -f org.omarchy.screensaver >/dev/null && exit 0
 
 # Allow screensaver to be turned off but also force started
 if omarchy-toggle-enabled screensaver-off && [[ $1 != "force" ]]; then
@@ -15,45 +11,35 @@ if omarchy-toggle-enabled screensaver-off && [[ $1 != "force" ]]; then
 fi
 
 # Silently quit Walker on overlay
-walker -q
+command -v walker >/dev/null 2>&1 && walker -q
 
-focused=$(omarchy-hyprland-monitor-focused)
+focused=$(omarchy-mango-monitor-focused)
 terminal=$(xdg-terminal-exec --print-id)
 
-for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
-  hyprctl dispatch focusmonitor $m
+for m in $(mmsg get all-monitors | jq -r '.monitors[].name'); do
+  mmsg dispatch "focusmon,$m" >/dev/null 2>&1
 
   case $terminal in
   *Alacritty*)
-    hyprctl dispatch exec -- \
-      alacritty --class=org.omarchy.screensaver \
-      --config-file ~/.local/share/omarchy/default/alacritty/screensaver.toml \
-      -e omarchy-screensaver
+    command="alacritty --class=org.omarchy.screensaver --config-file $HOME/.local/share/omarchy/default/alacritty/screensaver.toml -e omarchy-screensaver"
     ;;
   *ghostty*)
-    hyprctl dispatch exec -- \
-      ghostty --class=org.omarchy.screensaver \
-      --config-file=~/.local/share/omarchy/default/ghostty/screensaver \
-      --font-size=18 \
-      -e omarchy-screensaver
+    command="ghostty --class=org.omarchy.screensaver --config-file=$HOME/.local/share/omarchy/default/ghostty/screensaver --font-size=18 -e omarchy-screensaver"
     ;;
   *foot*)
-    hyprctl dispatch exec -- \
-      foot --app-id=org.omarchy.screensaver \
-      --config="$OMARCHY_PATH/default/foot/screensaver.ini" \
-      -e omarchy-screensaver
+    command="foot --app-id=org.omarchy.screensaver --config=$HOME/.local/share/omarchy/default/foot/screensaver.ini -e omarchy-screensaver"
     ;;
   *kitty*)
-    hyprctl dispatch exec -- \
-      kitty --class=org.omarchy.screensaver \
-      --override font_size=18 \
-      --override window_padding_width=0 \
-      -e omarchy-screensaver
+    command="kitty --class=org.omarchy.screensaver --override font_size=18 --override window_padding_width=0 -e omarchy-screensaver"
     ;;
   *)
     notify-send -u low "✋  Screensaver only runs in Alacritty, Foot, Ghostty, or Kitty"
+    break
     ;;
   esac
+
+  mmsg dispatch "spawn_shell,$command" >/dev/null 2>&1
+  sleep 0.2
 done
 
-hyprctl dispatch focusmonitor $focused
+[[ -n $focused ]] && mmsg dispatch "focusmon,$focused" >/dev/null 2>&1

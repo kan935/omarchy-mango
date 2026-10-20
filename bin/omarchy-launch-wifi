@@ -1,6 +1,16 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the Omarchy wifi controls (provided by the Impala TUI).
+# omarchy:summary=Launch the Omarchy wifi controls.
 
-rfkill unblock wifi
-omarchy-launch-or-focus-tui impala
+rfkill unblock wifi 2>/dev/null || true
+
+if command -v impala >/dev/null 2>&1; then
+  exec omarchy-launch-or-focus-tui impala
+elif command -v nmtui >/dev/null 2>&1; then
+  exec omarchy-launch-or-focus-tui nmtui
+elif command -v nm-connection-editor >/dev/null 2>&1; then
+  exec omarchy-launch-or-focus nm-connection-editor "uwsm-app -- nm-connection-editor"
+else
+  notify-send "Wi-Fi controls unavailable" "Install NetworkManager-tui or nm-connection-editor"
+  exit 1
+fi

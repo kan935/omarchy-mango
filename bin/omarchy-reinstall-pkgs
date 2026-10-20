@@ -1,18 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Reinstall all default Omarchy packages from the stable channel
-# omarchy:requires-sudo=true
+# omarchy:summary=Reinstalling the Omarchy package set is an Arch/pacman workflow.
 
-set -e
-
-# Reinstall all default Omarchy packages from the stable channel and downgrade any packages that are too new.
-
-# Set the package repository to the stable mirrors
-omarchy-refresh-pacman
-
-# Downgrade any packages to the stable setup
-sudo pacman -Suu --noconfirm
-
-# Ensure all packages are installed
-mapfile -t packages < <(grep -v '^#' "$OMARCHY_PATH/install/omarchy-base.packages" | grep -v '^$')
-sudo pacman -Syu --noconfirm --needed "${packages[@]}"
+echo "This command is not available on Fedora. Use 'omarchy update' or 'sudo dnf reinstall <package>'." >&2
+exit 1

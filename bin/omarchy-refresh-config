@@ -10,9 +10,9 @@ if [[ -z $config_file ]]; then
   Usage: $0 [config_file]
 
   Must provide a file path from the .config directory to be refreshed.
-  To copy ~/.local/share/omarchy/config/hypr/hyprlock.conf to ~/.config/hypr/hyprlock.conf
+  To copy ~/.local/share/omarchy/config/mango/looknfeel.conf to ~/.config/mango/looknfeel.conf
 
-    $0 hypr/hyprlock.conf
+    $0 mango/looknfeel.conf
 USAGE
   exit 1
 fi

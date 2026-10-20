@@ -1,6 +1,16 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the Omarchy bluetooth controls TUI (provided by bluetui).
+# omarchy:summary=Launch the Omarchy bluetooth controls.
 
-rfkill unblock bluetooth
-exec omarchy-launch-or-focus-tui bluetui
+rfkill unblock bluetooth 2>/dev/null || true
+
+if command -v bluetui >/dev/null 2>&1; then
+  exec omarchy-launch-or-focus-tui bluetui
+elif command -v blueman-manager >/dev/null 2>&1; then
+  exec omarchy-launch-or-focus blueman-manager "uwsm-app -- blueman-manager"
+elif command -v bluetoothctl >/dev/null 2>&1; then
+  exec omarchy-launch-or-focus-tui bluetoothctl
+else
+  notify-send "Bluetooth controls unavailable" "Install blueman or bluetui"
+  exit 1
+fi

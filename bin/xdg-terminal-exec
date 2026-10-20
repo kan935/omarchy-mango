@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# omarchy:summary=Compatibility shim for xdg-terminal-exec using Omarchy's terminal preference list.
+# omarchy:hidden=true
+
+print_id=false
+working_dir="$PWD"
+app_id=""
+title=""
+command=()
+
+while (($#)); do
+  case "$1" in
+  --print-id | -p)
+    print_id=true
+    shift
+    ;;
+  --dir=* | --working-directory=*)
+    working_dir="${1#*=}"
+    shift
+    ;;
+  --dir | --working-directory)
+    working_dir="${2:-$PWD}"
+    shift 2
+    ;;
+  --app-id=*)
+    app_id="${1#*=}"
+    shift
+    ;;
+  --app-id)
+    app_id="${2:-}"
+    shift 2
+    ;;
+  --title=*)
+    title="${1#*=}"
+    shift
+    ;;
+  --title)
+    title="${2:-}"
+    shift 2
+    ;;
+  -e | --execute)
+    shift
+    command=("$@")
+    break
+    ;;
+  --)
+    shift
+    command=("$@")
+    break
+    ;;
+  -*)
+    # Ignore unknown xdg-terminal-exec options rather than failing a keybinding.
+    shift
+    ;;
+  *)
+    command=("$@")
+    break
+    ;;
+  esac
+done
+
+# Terminal preference: ~/.config/xdg-terminals.list, then $TERMINAL, then alacritty.
+terminal_id=""
+if [[ -f $HOME/.config/xdg-terminals.list ]]; then
+  terminal_id=$(grep -vE '^($|#)' "$HOME/.config/xdg-terminals.list" 2>/dev/null | head -n 1)
+fi
+if [[ -z $terminal_id && -n ${TERMINAL:-} ]]; then
+  terminal_id="$TERMINAL"
+fi
+[[ -z $terminal_id ]] && terminal_id="Alacritty.desktop"
+
+case "$terminal_id" in
+*Alacritty* | *alacritty*) terminal="alacritty" ;;
+*foot* | *Foot*) terminal="foot" ;;
+*ghostty* | *Ghostty*) terminal="ghostty" ;;
+*kitty* | *Kitty*) terminal="kitty" ;;
+*)
+  terminal=$(command -v "$terminal_id" 2>/dev/null || true)
+  [[ -z $terminal ]] && terminal="alacritty"
+  ;;
+esac
+
+if ! command -v "$terminal" >/dev/null 2>&1; then
+  echo "xdg-terminal-exec: terminal '$terminal' not found" >&2
+  exit 1
+fi
+
+if $print_id; then
+  echo "$terminal_id"
+  exit 0
+fi
+
+[[ -n $app_id ]] || app_id="org.omarchy.terminal"
+
+case "$terminal" in
+alacritty)
+  args=(alacritty --class "$app_id" --working-directory "$working_dir")
+  [[ -n $title ]] && args+=(--title "$title")
+  ((${#command[@]})) && args+=(-e "${command[@]}")
+  exec "${args[@]}"
+  ;;
+foot)
+  args=(foot --app-id="$app_id" --working-directory="$working_dir")
+  [[ -n $title ]] && args+=(--title="$title")
+  ((${#command[@]})) && args+=(-e "${command[@]}")
+  exec "${args[@]}"
+  ;;
+ghostty)
+  args=(ghostty --class="$app_id" --working-directory="$working_dir")
+  [[ -n $title ]] && args+=(--title="$title")
+  ((${#command[@]})) && args+=(-e "${command[@]}")
+  exec "${args[@]}"
+  ;;
+kitty)
+  args=(kitty --class "$app_id" --directory "$working_dir")
+  [[ -n $title ]] && args+=(--title "$title")
+  ((${#command[@]})) && args+=("${command[@]}")
+  exec "${args[@]}"
+  ;;
+esac

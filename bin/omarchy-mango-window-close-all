@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# omarchy:summary=Close all open windows
+
+mmsg get all-clients | jq -r '.clients[].id' | while read -r id; do
+  [[ -n $id ]] && mmsg dispatch killclient client,"$id" >/dev/null 2>&1
+done
+
+mmsg dispatch view,1 >/dev/null 2>&1

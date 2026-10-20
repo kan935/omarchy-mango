@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# omarchy:summary=Pick a colour from the screen and copy it as #RRGGBB
+
+if ! point=$(slurp -p 2>/dev/null); then
+  exit 0
+fi
+
+geometry="${point} 1x1"
+
+if command -v magick >/dev/null 2>&1; then
+  hex=$(grim -g "$geometry" -t ppm - | magick - -format '%[hex:p{0,0}]' info:-)
+else
+  hex=$(grim -g "$geometry" -t ppm - | convert - -format '%[hex:p{0,0}]' info:-)
+fi
+
+hex="#${hex^^}"
+printf '%s' "$hex" | wl-copy
+notify-send -u low "󰈋    Colour $hex copied"

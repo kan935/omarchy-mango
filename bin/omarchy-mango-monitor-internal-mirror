@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# omarchy:summary=Mirroring the internal display is not supported by Mango.
+# omarchy:args=<on|off|toggle|recover>
+
+# Mango's monitor rules can position, scale, rotate, and disable outputs, but
+# they cannot clone one output onto another. Keep the command surface so menus
+# and keybindings do not break, and explain the limitation instead.
+case "$1" in
+on | toggle)
+  notify-send -u low "󰍹    Mirroring is not supported by Mango" "Use extended mode and move windows between displays instead"
+  exit 1
+  ;;
+off | disable | recover)
+  exit 0
+  ;;
+*)
+  echo "Usage: $(basename "$0") {on|off|toggle|recover}" >&2
+  exit 1
+  ;;
+esac

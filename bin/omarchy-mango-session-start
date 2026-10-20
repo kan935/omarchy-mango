@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# omarchy:summary=Start Omarchy session services under Mango.
+# omarchy:hidden=true
+
+# Make the compositor environment available to systemd and D-Bus clients.
+systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE MANGO_INSTANCE_SIGNATURE 2>/dev/null || true
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE MANGO_INSTANCE_SIGNATURE 2>/dev/null || true
+
+start_once() {
+  local name=$1
+  shift
+  pgrep -x "$name" >/dev/null 2>&1 && return 0
+  setsid "$@" >/dev/null 2>&1 &
+}
+
+# Wallpaper
+background="$HOME/.config/omarchy/current/background"
+if [[ -f $background ]]; then
+  start_once swaybg swaybg -i "$background" -m fill
+else
+  start_once swaybg swaybg --color '#1a1b26'
+fi
+
+# Notification daemon
+start_once mako mako
+
+# Status bar (respects "omarchy toggle waybar")
+if ! omarchy-toggle-enabled waybar-off; then
+  start_once waybar waybar
+fi
+
+# Input method
+if command -v fcitx5 >/dev/null 2>&1; then
+  start_once fcitx5 fcitx5 -d --disable notificationitem
+fi
+
+# Polkit agent (Fedora packages lxpolkit or mate-polkit)
+polkit_agent=""
+for candidate in \
+  /usr/libexec/polkit-gnome-authentication-agent-1 \
+  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
+  /usr/libexec/polkit-mate-authentication-agent-1 \
+  /usr/libexec/xfce-polkit \
+  /usr/bin/lxpolkit; do
+  if [[ -x $candidate ]]; then
+    polkit_agent="$candidate"
+    break
+  fi
+done
+
+if [[ -n $polkit_agent ]]; then
+  if ! pgrep -f "$(basename "$polkit_agent")" >/dev/null 2>&1; then
+    if [[ $polkit_agent == /usr/bin/lxpolkit ]]; then
+      # lxpolkit is X11-only and may start before Xwayland is accepting
+      # connections. Give Xwayland a moment so it does not open an error dialog.
+      setsid bash -c 'sleep 2; exec /usr/bin/lxpolkit' >/dev/null 2>&1 &
+    else
+      setsid "$polkit_agent" >/dev/null 2>&1 &
+    fi
+  fi
+fi
+
+# On-screen display daemon
+if command -v swayosd-server >/dev/null 2>&1; then
+  start_once swayosd-server swayosd-server
+fi
+
+# Idle/lock and monitor hotplug helpers
+pgrep -f 'swayidle' >/dev/null 2>&1 || setsid omarchy-swayidle-start >/dev/null 2>&1 &
+pgrep -f 'omarchy-mango-monitor-watch' >/dev/null 2>&1 || setsid omarchy-mango-monitor-watch >/dev/null 2>&1 &
+
+# Power profiles
+command -v omarchy-powerprofiles-init >/dev/null 2>&1 && omarchy-powerprofiles-init >/dev/null 2>&1 || true
+
+# One-time post-login setup, if the installer requested it
+if [[ -f $HOME/.local/state/omarchy/first-run.mode ]]; then
+  omarchy-first-run >/dev/null 2>&1 || true
+fi

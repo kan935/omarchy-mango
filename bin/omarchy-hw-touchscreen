@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# omarchy:summary=Print the detected Hyprland touchscreen or tablet device name
+# omarchy:summary=Print the detected Mango touchscreen or tablet device identifier
 
-device=$(hyprctl devices -j | jq -r '[.touch[]?.name, .tablets[]?.name] | first // empty')
-[[ -n $device ]] && echo "$device"
+mmsg get all-devices 2>/dev/null | jq -r '
+  .devices[]
+  | select((.types // []) | (index("touch") or index("tablet") or index("pad")))
+  | (.identifier // .name)
+' | head -n 1

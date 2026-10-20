@@ -1,0 +1,127 @@
+# Fedora packages installed by install-fedora.sh
+#
+# MangoWC is packaged as `mangowm` in the Terra repository:
+#   https://terra.fyralabs.com/
+# The installer reports a clear error if `mango` is still missing afterwards.
+#
+# Optional apps that Fedora does not package (Spotify, Obsidian, Typora,
+# LocalSend) are intentionally not listed. Install them from Flathub or their
+# vendor repositories.
+
+# Compositor and desktop shell
+mangowm
+waybar
+walker
+elephant
+mako
+swaybg
+swayidle
+swaylock
+SwayOSD
+gammastep
+
+# Session integration
+dbus-tools
+polkit
+mate-polkit
+lxpolkit
+xdg-utils
+xdg-user-dirs
+xdg-desktop-portal
+xdg-desktop-portal-wlr
+xdg-desktop-portal-gtk
+gnome-keyring
+libsecret
+libnotify
+xorg-x11-server-Xwayland
+qt5-qtwayland
+qt6-qtwayland
+
+# Input, audio, and hardware controls
+brightnessctl
+playerctl
+pamixer
+wireplumber
+pipewire
+pipewire-pulseaudio
+pipewire-utils
+alsa-utils
+upower
+power-profiles-daemon
+wtype
+ydotool
+wlr-randr
+
+# Clipboard, capture, and recording
+wl-clipboard
+cliphist
+grim
+slurp
+satty
+wf-recorder
+tesseract
+tesseract-langpack-eng
+ImageMagick
+# ffmpeg-free is the Fedora package; RPM Fusion's full `ffmpeg` package
+# conflicts with it. The installer accepts either one.
+ffmpeg-free
+
+# Terminals and everyday applications
+alacritty
+chromium
+nautilus
+nautilus-python
+sushi
+gnome-text-editor
+gnome-calculator
+gnome-disk-utility
+file-roller
+evince
+zathura
+imv
+mpv
+network-manager-applet
+nm-connection-editor
+NetworkManager-tui
+blueman
+pavucontrol
+pulseaudio-utils
+wiremix
+v4l-utils
+
+# Input method
+fcitx5
+fcitx5-gtk
+fcitx5-qt
+fcitx5-mozc
+
+# CLI tools used by Omarchy
+jq
+yq
+fzf
+ripgrep
+fd-find
+bat
+eza
+zoxide
+starship
+tmux
+btop
+fastfetch
+gum
+inxi
+unzip
+less
+man-db
+procps-ng
+psmisc
+util-linux
+
+# Fonts and icons
+fontawesome-fonts-all
+jetbrains-mono-fonts-all
+jetbrainsmono-nerd-fonts
+google-noto-sans-fonts
+google-noto-serif-fonts
+google-noto-emoji-fonts
+adwaita-icon-theme

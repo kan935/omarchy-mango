@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Toggle gaps between windows
+
+mmsg dispatch togglegaps >/dev/null 2>&1
+
+if omarchy-toggle-enabled window-gaps-off; then
+  omarchy-toggle window-gaps-off
+  notify-send -u low "󱂬    Window gaps enabled"
+else
+  omarchy-toggle window-gaps-off
+  notify-send -u low "󱂬    Window gaps disabled"
+fi

@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# omarchy:summary=Run the Omarchy screensaver using random effects from TTE.
+# omarchy:summary=Run the Omarchy screensaver using TTE when available, with a built-in Python fallback.
 
 screensaver_in_focus() {
-  hyprctl activewindow -j | jq -e '.class == "org.omarchy.screensaver"' >/dev/null 2>&1
+  mmsg get all-clients 2>/dev/null | jq -e '
+    [.clients[] | select((.appid // "") == "org.omarchy.screensaver" and .is_focused == true)]
+    | length > 0' >/dev/null 2>&1
 }
 
 exit_screensaver() {
-  hyprctl keyword cursor:invisible false &>/dev/null || true
   pkill -x tte 2>/dev/null
   pkill -f org.omarchy.screensaver 2>/dev/null
   exit 0
@@ -16,15 +17,150 @@ exit_screensaver() {
 # Exit the screensaver on signals and input from keyboard and mouse
 trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
 
-printf '\033]11;rgb:00/00/00\007'  # Set background color to black
+printf '\033]11;rgb:00/00/00\007' # Set background color to black
 
-hyprctl keyword cursor:invisible true &>/dev/null
+if ! command -v tte >/dev/null 2>&1; then
+  exec python3 - <<'PY'
+import os
+import json
+import random
+import select
+import signal
+import subprocess
+import sys
+import time
+import shutil
+
+ESC = "\033["
+RESET = ESC + "0m"
+ALT_ON = ESC + "?1049h" + ESC + "?25l"
+ALT_OFF = ESC + "?1049l" + ESC + "?25h"
+
+FONT = {
+    "O": (" ███ ", "█   █", "█   █", "█   █", " ███ "),
+    "M": ("█   █", "██ ██", "█ █ █", "█   █", "█   █"),
+    "A": (" ███ ", "█   █", "█████", "█   █", "█   █"),
+    "R": ("████ ", "█   █", "████ ", "█  █ ", "█   █"),
+    "C": (" ████", "█    ", "█    ", "█    ", " ████"),
+    "H": ("█   █", "█   █", "█████", "█   █", "█   █"),
+    "Y": ("█   █", " █ █ ", "  █  ", "  █  ", "  █  "),
+}
+
+
+def restore(*_args):
+    sys.stdout.write(ALT_OFF + RESET)
+    sys.stdout.flush()
+    sys.exit(0)
+
+
+def session_active():
+    try:
+        out = subprocess.check_output(
+            ["mmsg", "get", "all-clients"], stderr=subprocess.DEVNULL, timeout=0.5
+        )
+        clients = json.loads(out).get("clients", [])
+        return any(
+            c.get("appid") == "org.omarchy.screensaver" and c.get("is_focused")
+            for c in clients
+        )
+    except Exception:
+        # If Mango IPC is unavailable, keep showing rather than flashing.
+        return True
+
+
+def big_text(word):
+    rows = [""] * 5
+    for i, letter in enumerate(word):
+        glyph = FONT.get(letter, (" " * 5,) * 5)
+        for row in range(5):
+            rows[row] += glyph[row] + (" " if i < len(word) - 1 else "")
+    return rows
+
+
+def render(word, width, height, tick):
+    rows = big_text(word)
+    text_width = max(len(row) for row in rows)
+    text_height = len(rows)
+
+    if width < text_width + 4 or height < text_height + 6:
+        # Tiny terminal: fall back to plain centered text.
+        rows = [word]
+        text_width = len(word)
+        text_height = 1
+
+    top = max(0, (height - text_height) // 2 - 2)
+    left = max(0, (width - text_width) // 2)
+
+    stars = []
+    random.seed(7)
+    for _ in range(max(8, width * height // 220)):
+        stars.append((random.randrange(width), random.randrange(height)))
+
+    out = [ESC + "40m" + ESC + "2J"]
+    for x, y in stars:
+        if top <= y < top + text_height + 3:
+            continue
+        shade = 238 + (x + y + tick) % 12
+        out.append(f"{ESC}{y + 1};{x + 1}H{ESC}38;5;{shade}m·")
+
+    for row, text in enumerate(rows):
+        y = top + row + 1
+        # Vertical gradient between blue and violet.
+        r = 90 + row * 18
+        g = 150 - row * 8
+        b = 245
+        x = left + 1
+        out.append(f"{ESC}{y};{x}H{ESC}38;2;{r};{g};{b}m{text}")
+
+    hint = "press any key to wake"
+    hint_x = max(0, (width - len(hint)) // 2) + 1
+    hint_y = min(height, top + text_height + 3)
+    out.append(f"{ESC}{hint_y};{hint_x}H{ESC}38;5;244m{hint}")
+    out.append(RESET)
+    sys.stdout.write("".join(out))
+    sys.stdout.flush()
+
+
+def main():
+    signal.signal(signal.SIGTERM, restore)
+    signal.signal(signal.SIGINT, restore)
+    signal.signal(signal.SIGHUP, restore)
+
+    try:
+        tty = open("/dev/tty", "rb", buffering=0)
+    except OSError:
+        tty = None
+
+    sys.stdout.write(ALT_ON)
+    sys.stdout.flush()
+
+    tick = 0
+    while True:
+        size = shutil.get_terminal_size((80, 24))
+        render("OMARCHY", size.columns, size.lines, tick)
+        tick += 1
+
+        if tty is not None:
+            ready, _, _ = select.select([tty], [], [], 0.12)
+            if ready:
+                tty.read(1)
+                restore()
+        else:
+            time.sleep(0.12)
+
+        if tick % 16 == 0 and not session_active():
+            restore()
+
+
+main()
+PY
+fi
 
 tty=$(tty 2>/dev/null)
 
 while true; do
   tte -i ~/.config/omarchy/branding/screensaver.txt \
-    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
+    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c \
     --random-effect --no-eol --no-restore-cursor &
 
   while pgrep -t "${tty#/dev/}" -x tte >/dev/null; do

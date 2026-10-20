@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# omarchy:summary=Minimal uwsm compatibility shim for Mango.
+# omarchy:hidden=true
+
+case "${1:-}" in
+stop | shutdown)
+  mmsg dispatch quit
+  ;;
+app)
+  shift
+  [[ ${1:-} == "--" ]] && shift
+  exec "$@"
+  ;;
+start)
+  # `uwsm start ... <session>.desktop` is only used by the old Hyprland session
+  # file. Start Mango directly if someone still calls it.
+  shift
+  exec mango
+  ;;
+"")
+  echo "Usage: uwsm {app -- <command> | stop}" >&2
+  exit 1
+  ;;
+*)
+  exec "$@"
+  ;;
+esac

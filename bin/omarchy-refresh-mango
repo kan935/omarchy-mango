@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Reset Mango config to the Omarchy defaults
+# omarchy:examples=omarchy refresh mango
+
+for file in config.conf monitors.conf input.conf bindings.conf looknfeel.conf autostart.conf; do
+  omarchy-refresh-config "mango/$file"
+done
+
+mmsg dispatch reload_config >/dev/null 2>&1 || true

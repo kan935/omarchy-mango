@@ -1,169 +1,126 @@
 #!/bin/bash
 
-# omarchy:summary=Display Hyprland keybindings defined in your configuration using walker for an interactive search menu.
+# omarchy:summary=Display Mango keybindings defined in your configuration using walker for an interactive search menu.
 
-declare -A KEYCODE_SYM_MAP
+declare -A BINDINGS
 
-build_keymap_cache() {
-  local keymap
-  keymap="$(xkbcli compile-keymap)" || {
-    echo "Failed to compile keymap" >&2
-    return 1
-  }
+parse_bindings_file() {
+  local file="$1"
+  [[ -f $file ]] || return
 
-  while IFS=, read -r code sym; do
-    [[ -z $code || -z $sym ]] && continue
-    KEYCODE_SYM_MAP["$code"]="$sym"
-  done < <(
-    awk '
-      BEGIN { sec = "" }
-      /xkb_keycodes/ { sec = "codes"; next }
-      /xkb_symbols/  { sec = "syms";  next }
-      sec == "codes" {
-        if (match($0, /<([A-Za-z0-9_]+)>\s*=\s*([0-9]+)\s*;/, m)) code_by_name[m[1]] = m[2]
-      }
-      sec == "syms" {
-        if (match($0, /key\s*<([A-Za-z0-9_]+)>\s*\{\s*\[\s*([^, \]]+)/, m)) sym_by_name[m[1]] = m[2]
-      }
-      END {
-        for (k in code_by_name) {
-          c = code_by_name[k]
-          s = sym_by_name[k]
-          if (c != "" && s != "" && s != "NoSymbol") print c "," s
-        }
-      }
-    ' <<<"$keymap"
-  )
-}
-
-lookup_keycode_cached() {
-  printf '%s\n' "${KEYCODE_SYM_MAP[$1]}"
-}
-
-parse_keycodes() {
-  local start end elapsed
-  [[ ${DEBUG:-0} == "1" ]] && start=$(date +%s.%N)
   while IFS= read -r line; do
-    if [[ $line =~ code:([0-9]+) ]]; then
-      code="${BASH_REMATCH[1]}"
-      if [[ $code == "201" ]]; then
-        echo "${line/SUPER SHIFT,code:201/,COPILOT KEY}"
-      else
-        symbol=$(lookup_keycode_cached "$code" "$XKB_KEYMAP_CACHE")
-        echo "${line/code:${code}/$symbol}"
-      fi
-    elif [[ $line =~ mouse:([0-9]+) ]]; then
-      code="${BASH_REMATCH[1]}"
+    [[ $line =~ ^[[:space:]]*# ]] && continue
+    [[ $line =~ ^[[:space:]]*(bind|bindl|bindr|bindc)=(.*)$ ]] || continue
 
-      case "$code" in
-        272) symbol="LEFT MOUSE BUTTON" ;;
-        273) symbol="RIGHT MOUSE BUTTON" ;;
-        274) symbol="MIDDLE MOUSE BUTTON" ;;
-        *)   symbol="mouse:${code}" ;;
-      esac
+    local rest="${BASH_REMATCH[2]}"
+    local mods="${rest%%,*}"
+    rest="${rest#*,}"
+    local key="${rest%%,*}"
+    rest="${rest#*,}"
+    local dispatcher="${rest%%,*}"
+    local arg="${rest#*,}"
+    [[ $arg == "$rest" ]] && arg=""
 
-      echo "${line/mouse:${code}/$symbol}"
+    local combo
+    if [[ -z $mods || $mods == "NONE" ]]; then
+      combo="$key"
     else
-      echo "$line"
+      combo="${mods//+/ + } + $key"
     fi
-  done
 
-  if [[ $DEBUG == "1" ]]; then
-    end=$(date +%s.%N)
-    # fall back to awk if bc is missing
-    if command -v bc >/dev/null 2>&1; then
-      elapsed=$(echo "$end - $start" | bc)
-    else
-      elapsed=$(awk -v s="$start" -v e="$end" 'BEGIN{printf "%.6f", (e - s)}')
-    fi
-    echo "[DEBUG] parse_keycodes elapsed: ${elapsed}s" >&2
-  fi
+    BINDINGS["$combo"]=$(describe "$dispatcher" "$arg")
+  done <"$file"
 }
 
-# Fetch dynamic keybindings from Hyprland
-#
-# Also do some pre-processing:
-# - Remove standard Omarchy bin path prefix
-# - Remove uwsm prefix
-# - Map numeric modifier key mask to a textual rendition
-# - Output comma-separated values that the parser can understand
-dynamic_bindings() {
-  hyprctl -j binds |
-    jq -r '.[] | {modmask, key, keycode, description, dispatcher, arg} | "\(.modmask),\(.key)@\(.keycode),\(.description),\(.dispatcher),\(.arg)"' |
-    sed -r \
-      -e 's/null//' \
-      -e 's,~/.local/share/omarchy/bin/,,' \
-      -e 's,uwsm app -- ,,' \
-      -e 's,uwsm-app -- ,,' \
-      -e 's/@0//' \
-      -e 's/,@/,code:/' \
-      -e 's/^0,/,/' \
-      -e 's/^1,/SHIFT,/' \
-      -e 's/^4,/CTRL,/' \
-      -e 's/^5,/SHIFT CTRL,/' \
-      -e 's/^8,/ALT,/' \
-      -e 's/^9,/SHIFT ALT,/' \
-      -e 's/^12,/CTRL ALT,/' \
-      -e 's/^13,/SHIFT CTRL ALT,/' \
-      -e 's/^64,/SUPER,/' \
-      -e 's/^65,/SUPER SHIFT,/' \
-      -e 's/^68,/SUPER CTRL,/' \
-      -e 's/^69,/SUPER SHIFT CTRL,/' \
-      -e 's/^72,/SUPER ALT,/' \
-      -e 's/^73,/SUPER SHIFT ALT,/' \
-      -e 's/^76,/SUPER CTRL ALT,/' \
-      -e 's/^77,/SUPER SHIFT CTRL ALT,/'
+describe() {
+  local dispatcher="$1" arg="$2"
+  local action
+
+  case "$dispatcher" in
+  spawn | spawn_shell)
+    action="$arg"
+    action="${action//\~\/.local\/share\/omarchy\/bin\//}"
+    action="${action#uwsm-app -- }"
+    action="${action#uwsm app -- }"
+    ;;
+  view) action="Switch to workspace $arg" ;;
+  tag) action="Move window to workspace $arg" ;;
+  tagsilent) action="Move window silently to workspace $arg" ;;
+  toggleview) action="Toggle workspace $arg visibility" ;;
+  viewtoleft) action="Previous workspace" ;;
+  viewtoright) action="Next workspace" ;;
+  viewtoleft_have_client) action="Previous workspace with a window" ;;
+  viewtoright_have_client) action="Next workspace with a window" ;;
+  focusdir) action="Focus window $arg" ;;
+  move_client) action="Move window $arg" ;;
+  exchange_client) action="Swap window $arg" ;;
+  focusmon) action="Focus monitor $arg" ;;
+  focusstack) action="Cycle windows ($arg)" ;;
+  focuslast) action="Focus last window" ;;
+  focus_window_or_workspace) action="Focus window or workspace $arg" ;;
+  groupjoin) action="Join group $arg" ;;
+  groupleave) action="Leave group" ;;
+  groupfocus) action="Focus group member $arg" ;;
+  togglegroupbar) action="Toggle group bar" ;;
+  killclient) action="Close window" ;;
+  smartkillclient) action="Close window (detach from tag first)" ;;
+  togglefloating) action="Toggle window floating" ;;
+  togglefullscreen) action="Toggle full screen" ;;
+  togglefakefullscreen) action="Toggle fake full screen" ;;
+  togglemaximizescreen) action="Toggle maximized" ;;
+  toggleglobal) action="Pin window to all workspaces" ;;
+  toggleoverview) action="Toggle overview" ;;
+  enteroverview) action="Enter overview" ;;
+  leaveoverview) action="Leave overview" ;;
+  togglejump) action="Toggle overview jump mode" ;;
+  toggle_special_tag) action="Toggle scratchpad" ;;
+  tag_special_tag) action="Move window to scratchpad" ;;
+  tag_special_silent) action="Silently move window to scratchpad" ;;
+  toggle_scratchpad) action="Toggle scratchpad" ;;
+  minimize | minimized) action="Minimize window" ;;
+  restore_minimized) action="Restore minimized window" ;;
+  reload_config) action="Reload Mango configuration" ;;
+  quit) action="Quit Mango" ;;
+  resizewin) action="Resize window $arg" ;;
+  movewin) action="Move window $arg" ;;
+  moveresize) action="Drag to $arg" ;;
+  setlayout) action="Set layout $arg" ;;
+  switch_layout) action="Cycle layout" ;;
+  incgaps) action="Adjust gaps $arg" ;;
+  togglegaps) action="Toggle gaps" ;;
+  dwindle_toggle_split_direction) action="Toggle split direction" ;;
+  dwindle_toggle_current_split) action="Toggle current split direction" ;;
+  switch_keyboard_layout) action="Switch keyboard layout${arg:+ $arg}" ;;
+  switch_proportion_preset) action="Cycle scroller proportion" ;;
+  set_proportion) action="Set scroller proportion $arg" ;;
+  scroller_stack) action="Move window in scroller stack $arg" ;;
+  incnmaster) action="Adjust master count $arg" ;;
+  setmfact) action="Adjust master size $arg" ;;
+  zoom) action="Swap window with master" ;;
+  centerwin) action="Center floating window" ;;
+  smartmovewin) action="Move floating window $arg" ;;
+  smartresizewin) action="Resize floating window $arg" ;;
+  create_virtual_output) action="Create virtual output" ;;
+  destroy_all_virtual_output) action="Destroy virtual outputs" ;;
+  sleep_monitor) action="Sleep monitor $arg" ;;
+  wakeup_monitor) action="Wake monitor $arg" ;;
+  *)
+    action="$dispatcher${arg:+ $arg}"
+    ;;
+  esac
+
+  printf '%s' "$action"
 }
 
-# Hardcoded bindings, like the copy-url extension and such
-static_bindings() {
-    echo "SHIFT ALT,L,Copy URL from Web App,extension,copy-url"
-}
+output_keybindings() {
+  BINDINGS=()
+  parse_bindings_file "$OMARCHY_PATH/default/mango/bindings.conf"
+  parse_bindings_file "$HOME/.config/mango/bindings.conf"
 
-# Parse and format keybindings
-#
-# `awk` does the heavy lifting:
-# - Set the field separator to a comma ','.
-# - Joins the key combination (e.g., "SUPER + Q").
-# - Joins the command that the key executes.
-# - Prints everything in a nicely aligned format.
-parse_bindings() {
-  awk -F, '
-{
-    # Combine the modifier and key (first two fields)
-    key_combo = $1 " + " $2;
-
-    # Clean up: strip leading "+" if present, trim spaces
-    gsub(/^[ \t]*\+?[ \t]*/, "", key_combo);
-    gsub(/[ \t]+$/, "", key_combo);
-
-    # Use description, if set
-    action = $3;
-
-    if (action == "") {
-        # Reconstruct the command from the remaining fields
-        for (i = 4; i <= NF; i++) {
-            action = action $i (i < NF ? "," : "");
-        }
-
-        # Clean up trailing commas, remove leading "exec, ", and trim
-        sub(/,$/, "", action);
-        gsub(/(^|,)[[:space:]]*exec[[:space:]]*,?/, "", action);
-        gsub(/^[ \t]+|[ \t]+$/, "", action);
-        gsub(/[ \t]+/, " ", key_combo);  # Collapse multiple spaces to one
-
-        # Escape XML entities
-        gsub(/&/, "\\&amp;", action);
-        gsub(/</, "\\&lt;", action);
-        gsub(/>/, "\\&gt;", action);
-        gsub(/"/, "\\&quot;", action);
-        gsub(/'"'"'/, "\\&apos;", action);
-    }
-
-    if (action != "") {
-        printf "%-35s → %s\n", key_combo, action;
-    }
-}'
+  for combo in "${!BINDINGS[@]}"; do
+    [[ -z ${BINDINGS[$combo]} ]] && continue
+    printf '%-35s → %s\n' "$combo" "${BINDINGS[$combo]}"
+  done | prioritize_entries
 }
 
 prioritize_entries() {
@@ -173,77 +130,54 @@ prioritize_entries() {
     prio = 50
     if (match(line, /Terminal/)) prio = 0
     if (match(line, /Tmux/)) prio = 1
-    if (match(line, /Browser/) && !match(line, /Browser[[:space:]]*\(/) && !match(line, /SUPER SHIFT.*\+.*B.*→.*Browser/)) prio = 2
-    if (match(line, /File manager/) && !match(line, /File manager \(cwd\)/))  prio = 3
-    if (match(line, /Launch apps/))  prio = 4
-    if (match(line, /Omarchy menu/))  prio = 5
-    if (match(line, /System menu/))  prio = 6
-    if (match(line, /Theme menu/))  prio = 7
-    if (match(line, /Full screen/))  prio = 8
-    if (match(line, /Full width/))  prio = 9
-    if (match(line, /Close window/))  prio = 10
-    if (match(line, /Close all windows/))  prio = 11
-    if (match(line, /Lock system/))  prio = 12
-    if (match(line, /Toggle window floating/))  prio = 13
-    if (match(line, /Toggle window split/))  prio = 14
-    if (match(line, /Pop window/))  prio = 15
-    if (match(line, /Universal/))  prio = 16
-    if (match(line, /Clipboard/))  prio = 17
-    if (match(line, /Audio controls/))  prio = 18
-    if (match(line, /Bluetooth controls/))  prio = 19
-    if (match(line, /Wifi controls/))  prio = 20
-    if (match(line, /Emoji picker/))  prio = 21
-    if (match(line, /Color picker/))  prio = 22
-    if (match(line, /Screenshot/))  prio = 23
-    if (match(line, /Screenrecording/))  prio = 24
-    if (match(line, /SUPER SHIFT.*\+.*B.*→.*Browser/)) prio = 25
-    if (match(line, /File manager \(cwd\)/))  prio = 26
-    if (match(line, /(Switch|Next|Former|Previous).*workspace/))  prio = 27
-    if (match(line, /Move window to workspace/))  prio = 28
-    if (match(line, /Move window silently to workspace/))  prio = 29
-    if (match(line, /Swap window/))  prio = 30
-    if (match(line, /Focus/))  prio = 31
-    if (match(line, /Move window$/))  prio = 32
-    if (match(line, /Resize window/))  prio = 33
-    if (match(line, /Expand window/))  prio = 34
-    if (match(line, /Shrink window/))  prio = 35
-    if (match(line, /scratchpad/))  prio = 36
-    if (match(line, /notification/))  prio = 37
-    if (match(line, /Toggle window transparency/))  prio = 38
-    if (match(line, /Toggle workspace gaps/))  prio = 39
-    if (match(line, /Toggle nightlight/))  prio = 40
-    if (match(line, /Toggle locking/))  prio = 41
-    if (match(line, /group/))  prio = 94
-    if (match(line, /Scroll active workspace/))  prio = 95
-    if (match(line, /Cycle to/))  prio = 96
-    if (match(line, /Reveal active/))  prio = 97
-    if (match(line, /Apple Display/))  prio = 98
-    if (match(line, /XF86/))  prio = 99
+    if (match(line, /Browser/) && !match(line, /Browser[[:space:]]*\(/)) prio = 2
+    if (match(line, /File manager/) && !match(line, /File manager \(cwd\)/)) prio = 3
+    if (match(line, /Launch apps/)) prio = 4
+    if (match(line, /Omarchy menu/)) prio = 5
+    if (match(line, /System menu/)) prio = 6
+    if (match(line, /Theme menu/)) prio = 7
+    if (match(line, /Full screen/)) prio = 8
+    if (match(line, /Full width/)) prio = 9
+    if (match(line, /Close window/)) prio = 10
+    if (match(line, /Close all windows/)) prio = 11
+    if (match(line, /Lock system/)) prio = 12
+    if (match(line, /Toggle window floating/)) prio = 13
+    if (match(line, /Toggle split/)) prio = 14
+    if (match(line, /Pop window/)) prio = 15
+    if (match(line, /Clipboard/)) prio = 17
+    if (match(line, /Audio controls/)) prio = 18
+    if (match(line, /Bluetooth controls/)) prio = 19
+    if (match(line, /Wifi controls/)) prio = 20
+    if (match(line, /Color picker/)) prio = 22
+    if (match(line, /Screenshot/)) prio = 23
+    if (match(line, /Screenrecording/)) prio = 24
+    if (match(line, /Switch to workspace/)) prio = 27
+    if (match(line, /Move window to workspace/)) prio = 28
+    if (match(line, /Move window silently/)) prio = 29
+    if (match(line, /Swap window/)) prio = 30
+    if (match(line, /Focus window/)) prio = 31
+    if (match(line, /Focus monitor/)) prio = 32
+    if (match(line, /Resize window/)) prio = 33
+    if (match(line, /scratchpad/)) prio = 36
+    if (match(line, /notification/)) prio = 37
+    if (match(line, /Toggle window transparency/)) prio = 38
+    if (match(line, /Toggle workspace gaps/)) prio = 39
+    if (match(line, /nightlight/)) prio = 40
+    if (match(line, /Toggle locking/)) prio = 41
+    if (match(line, /group/)) prio = 94
+    if (match(line, /Cycle/)) prio = 96
+    if (match(line, /XF86/)) prio = 99
 
-    # print "priority<TAB>line"
     printf "%d\t%s\n", prio, line
   }' |
-  sort -k1,1n -k2,2 |
-  cut -f2-
-}
-
-output_keybindings() {
-  build_keymap_cache
-
-  {
-    dynamic_bindings
-    static_bindings
-  } |
-    sort -u |
-    parse_keycodes |
-    parse_bindings |
-    prioritize_entries
+    sort -k1,1n -k2,2 |
+    cut -f2-
 }
 
 if [[ $1 == "--print" || $1 == "-p" ]]; then
   output_keybindings
 else
-  monitor_height=$(hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .height')
+  monitor_height=$(mmsg get all-monitors | jq -r '[.monitors[] | select(.active == true) | .height] | first // 800')
   menu_height=$((monitor_height * 40 / 100))
 
   output_keybindings |

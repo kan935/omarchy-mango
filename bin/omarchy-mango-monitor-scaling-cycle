@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# omarchy:summary=Cycle the focused Mango monitor scaling through 1x, 1.25x, 1.6x, 2x, 3x, and 4x
+
+MONITOR_CONF="$HOME/.config/mango/monitors.conf"
+MARK_BEGIN="# >>> omarchy:mango-scale"
+MARK_END="# <<< omarchy:mango-scale"
+
+info=$(mmsg get all-monitors | jq -c '.monitors[] | select(.active == true)' | head -n1)
+if [[ -z $info || $info == "null" ]]; then
+  notify-send -u low "󰍹    No focused monitor"
+  exit 1
+fi
+
+name=$(jq -r '.name' <<<"$info")
+current=$(jq -r '.scale' <<<"$info")
+
+scales=(1 1.25 1.6 2 3 4)
+
+current_idx=$(awk -v s="$current" -v list="${scales[*]}" 'BEGIN {
+  n = split(list, arr, " ")
+  best = 0; best_diff = 1e9
+  for (i = 1; i <= n; i++) {
+    d = s - arr[i]; if (d < 0) d = -d
+    if (d < best_diff) { best_diff = d; best = i - 1 }
+  }
+  print best
+}')
+
+if [[ $1 == "--reverse" ]]; then
+  new_idx=$(((current_idx - 1 + ${#scales[@]}) % ${#scales[@]}))
+else
+  new_idx=$(((current_idx + 1) % ${#scales[@]}))
+fi
+
+new_scale=${scales[$new_idx]}
+
+mkdir -p "$(dirname "$MONITOR_CONF")"
+touch "$MONITOR_CONF"
+
+# Remove an earlier Omarchy scaling block, then prepend a fresh one so it wins
+# over any catch-all monitor_rule already in the file.
+tmp=$(mktemp)
+awk -v begin="$MARK_BEGIN" -v end="$MARK_END" '
+  $0 == begin { skip = 1; next }
+  $0 == end   { skip = 0; next }
+  !skip       { print }
+' "$MONITOR_CONF" >"$tmp"
+
+{
+  echo "$MARK_BEGIN"
+  echo "monitor_rule=name:^${name}\$,scale:${new_scale}"
+  echo "$MARK_END"
+  cat "$tmp"
+} >"$MONITOR_CONF"
+rm -f "$tmp"
+
+mmsg dispatch reload_config >/dev/null 2>&1
+
+notify-send -u low "󰍹    Display scaling set to ${new_scale}x"

@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# omarchy:summary=Toggle transparency for tiled windows
+#
+# Mango does not expose a per-window opacity dispatch, so this toggles the
+# global focused/unfocused opacity used by Omarchy.
+
+OVERRIDE="$HOME/.local/state/omarchy/toggles/mango/window-transparency.conf"
+mkdir -p "$(dirname "$OVERRIDE")"
+
+if omarchy-toggle-enabled window-transparency-off; then
+  cat >"$OVERRIDE" <<'EOF'
+focused_opacity=0.97
+unfocused_opacity=0.9
+EOF
+  omarchy-toggle window-transparency-off
+  notify-send -u low "󰂼    Window transparency enabled"
+else
+  cat >"$OVERRIDE" <<'EOF'
+focused_opacity=1.0
+unfocused_opacity=1.0
+EOF
+  omarchy-toggle window-transparency-off
+  notify-send -u low "󰂼    Window transparency disabled"
+fi
+
+mmsg dispatch reload_config >/dev/null 2>&1 || true

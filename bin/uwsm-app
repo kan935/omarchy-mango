@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# omarchy:summary=Compatibility shim for uwsm-app (executes the command directly).
+
+[[ ${1:-} == "--" ]] && shift
+exec "$@"

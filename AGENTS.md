@@ -31,7 +31,7 @@ Common prefixes include:
 
 Other current prefixes include:
 
-- `ac-`, `audio-`, `battery-`, `branch-`, `brightness-`, `channel-`, `config-`, `debug-`, `dev-`, `drive-`, `first-`, `font-`, `haptic-`, `hibernation-`, `hook-`, `hyprland-`, `menu-`, `migrate-`, `notification-`, `npx-`, `plymouth-`, `powerprofiles-`, `reinstall-`, `remove-`, `screensaver-`, `show-`, `snapshot-`, `state-`, `sudo-`, `swayosd-`, `system-`, `transcode-`, `tui-`, `tz-`, `upload-`, `version-`, `voxtype-`, `webapp-`, `wifi-`, `windows-`
+- `ac-`, `audio-`, `battery-`, `branch-`, `brightness-`, `channel-`, `config-`, `debug-`, `dev-`, `drive-`, `first-`, `font-`, `haptic-`, `hibernation-`, `hook-`, `mango-`, `menu-`, `migrate-`, `notification-`, `npx-`, `plymouth-`, `powerprofiles-`, `reinstall-`, `remove-`, `screensaver-`, `show-`, `snapshot-`, `state-`, `sudo-`, `swayosd-`, `system-`, `transcode-`, `tui-`, `tz-`, `upload-`, `version-`, `voxtype-`, `webapp-`, `wifi-`, `windows-`
 
 # Command Metadata
 
@@ -101,10 +101,10 @@ When making visual changes, such as Waybar styles or desktop appearance, always 
 To copy a default config to user config with automatic backup:
 
 ```bash
-omarchy-refresh-config hypr/hyprlock.conf
+omarchy-refresh-config mango/looknfeel.conf
 ```
 
-This copies `~/.local/share/omarchy/config/hypr/hyprlock.conf` to `~/.config/hypr/hyprlock.conf`.
+This copies `~/.local/share/omarchy/config/mango/looknfeel.conf` to `~/.config/mango/looknfeel.conf`.
 
 # Migrations
 
@@ -119,13 +119,13 @@ New migration format:
 
 Some older migrations predate these rules. Do not copy older migrations that start with shebangs, omit the leading `echo`, or hard-code `~/.local/share/omarchy`.
 
-Migrations may use raw `pacman`, `command -v`, or direct config edits when needed for historical compatibility or one-off repair work.
+Migrations may use raw `dnf`, `rpm`, `command -v`, or direct config edits when needed for historical compatibility or one-off repair work.
 
 Example:
 ```bash
-echo "Disable fingerprint in hyprlock if fingerprint auth is not configured"
+echo "Keep the Waybar layout module on Fedora"
 
-if omarchy-cmd-missing fprintd-list || ! fprintd-list "$USER" 2>/dev/null | grep -q "finger"; then
-  sed -i 's/fingerprint:enabled = .*/fingerprint:enabled = false/' ~/.config/hypr/hyprlock.conf
+if omarchy-cmd-present waybar && ! grep -q '"custom/layout"' ~/.config/waybar/config.jsonc; then
+  notify-send "Run omarchy-refresh-waybar to pick up the Mango layout module"
 fi
 ```

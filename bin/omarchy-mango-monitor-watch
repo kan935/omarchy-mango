@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# omarchy:summary=Watch monitor hotplug state and recover the internal display when externals disappear.
+
+# Mango does not expose Hyprland's monitor event socket. Polling is cheap and
+# reliable for the one thing Omarchy needs: restoring the laptop panel after an
+# external display is unplugged while it was disabled.
+while true; do
+  if ! omarchy-hw-external-monitors; then
+    omarchy-mango-monitor-internal recover
+    omarchy-mango-monitor-internal-mirror recover
+  fi
+  sleep 3
+done

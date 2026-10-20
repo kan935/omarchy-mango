@@ -8,10 +8,10 @@ running_kernel=$(uname -r)
 kernel_updated=true
 
 for kernel in /usr/lib/modules/*/vmlinuz; do
-  if [[ -f $kernel ]] && pacman -Qo "$kernel" &>/dev/null; then
+  if [[ -f $kernel ]] && rpm -qf "$kernel" &>/dev/null; then
     installed_kernel=$(basename "$(dirname "$kernel")")
 
-    if [[ $installed_kernel == $running_kernel ]]; then
+    if [[ $installed_kernel == "$running_kernel" ]]; then
       kernel_updated=false
       break
     fi
@@ -24,9 +24,9 @@ elif [[ -f $HOME/.local/state/omarchy/reboot-required ]]; then
   gum confirm "Updates require reboot. Ready?" && omarchy-system-reboot
 fi
 
-running_hyprland=$(readlink /proc/$(pgrep -x Hyprland)/exe 2>/dev/null)
-if [[ $running_hyprland == *"(deleted)"* ]]; then
-  gum confirm "Hyprland has been updated. Reboot?" && omarchy-system-reboot
+running_mango=$(readlink /proc/"$(pgrep -x mango)"/exe 2>/dev/null)
+if [[ $running_mango == *"(deleted)"* ]]; then
+  gum confirm "Mango has been updated. Reboot?" && omarchy-system-reboot
 fi
 
 for file in "$HOME"/.local/state/omarchy/restart-*-required; do

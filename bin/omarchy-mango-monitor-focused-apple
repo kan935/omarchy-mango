@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# omarchy:summary=Return success if the focused monitor is an Apple Studio Display or Pro Display XDR.
+
+monitor=$(omarchy-mango-monitor-focused)
+[[ -z $monitor ]] && exit 1
+
+if ! command -v wlr-randr >/dev/null 2>&1; then
+  exit 1
+fi
+
+wlr-randr --json 2>/dev/null | jq -e --arg name "$monitor" '
+  .[] | select(.name == $name)
+  | select(.make == "Apple Computer Inc")
+  | select(.model | test("StudioDisplay|ProDisplayXDR|Studio XDR"))
+' >/dev/null 2>&1

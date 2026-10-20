@@ -2,8 +2,14 @@
 
 # omarchy:summary=Returns true when an external monitor is physically connected.
 
+shopt -s nullglob
 for status in /sys/class/drm/card*-*/status; do
-  [[ "$status" == *-eDP-*/status ]] && continue
+  connector=$(basename "$(dirname "$status")")
+
+  # Skip laptop panels regardless of driver naming (eDP, LVDS, or DSI).
+  [[ ${connector,,} =~ -(edp|lvds|dsi)- ]] && continue
+
   [[ "$(<"$status")" == "connected" ]] && exit 0
 done
+
 exit 1

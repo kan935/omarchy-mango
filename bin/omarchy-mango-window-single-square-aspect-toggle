@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# omarchy:summary=Toggle a narrower single-window width in the Scroller layout
+#
+# Hyprland's single_window_aspect_ratio does not exist in Mango. The closest
+# equivalent is the Scroller layout's single-window proportion.
+
+OVERRIDE="$HOME/.local/state/omarchy/toggles/mango/window-single-aspect.conf"
+mkdir -p "$(dirname "$OVERRIDE")"
+
+if omarchy-toggle-enabled window-single-aspect; then
+  cat >"$OVERRIDE" <<'EOF'
+scroller_ignore_proportion_single=0
+scroller_default_proportion_single=1.0
+EOF
+  omarchy-toggle window-single-aspect
+  notify-send -u low "󱂬    Single-window width restored"
+else
+  cat >"$OVERRIDE" <<'EOF'
+scroller_ignore_proportion_single=0
+scroller_default_proportion_single=0.6
+EOF
+  omarchy-toggle window-single-aspect
+  notify-send -u low "󱂬    Single-window width set to 60% (Scroller layout: Super + L)"
+fi
+
+mmsg dispatch reload_config >/dev/null 2>&1 || true

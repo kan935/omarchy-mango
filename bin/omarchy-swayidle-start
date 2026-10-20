@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# omarchy:summary=Start the Omarchy idle/lock daemon for Mango.
+
+pkill -x swayidle 2>/dev/null || true
+
+exec swayidle -w \
+  timeout 150 'pgrep -x swaylock >/dev/null || omarchy-launch-screensaver' \
+  timeout 152 'omarchy-system-lock' \
+  resume 'omarchy-system-wake' \
+  before-sleep 'OMARCHY_LOCK_ONLY=true omarchy-system-lock' \
+  lock 'omarchy-system-lock'

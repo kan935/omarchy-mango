@@ -1,0 +1,495 @@
+#!/bin/bash
+
+# omarchy:summary=Hyprland-compatible query and dispatch shim backed by Mango IPC.
+# omarchy:hidden=true
+#
+# This shim exists so the large body of Omarchy scripts that grew up around
+# `hyprctl` keep working under Mango. It implements the queries and dispatches
+# Omarchy actually uses; unsupported dispatches are ignored with a warning
+# (rather than aborting a keybinding or menu action).
+
+set -o pipefail
+
+if [[ -z ${MANGO_INSTANCE_SIGNATURE:-} ]]; then
+  signature=$(ls -t /run/user/"$(id -u)"/mango-*.sock 2>/dev/null | head -n 1)
+  [[ -n $signature ]] && export MANGO_INSTANCE_SIGNATURE="$signature"
+fi
+
+if ! command -v mmsg >/dev/null 2>&1; then
+  echo "hyprctl: mmsg not found (is Mango running?)" >&2
+  exit 1
+fi
+
+json=false
+args=()
+for arg in "$@"; do
+  case "$arg" in
+  -j | --json) json=true ;;
+  *) args+=("$arg") ;;
+  esac
+done
+set -- "${args[@]}"
+
+cmd="${1:-}"
+shift || true
+
+monitors_json() {
+  mmsg get all-monitors 2>/dev/null | jq '
+    [.monitors | to_entries[] |
+      .key as $id | .value as $m |
+      {
+        id: $id,
+        name: $m.name,
+        description: $m.name,
+        make: "",
+        model: $m.name,
+        serial: "",
+        width: $m.width,
+        height: $m.height,
+        refreshRate: 60.0,
+        x: $m.x,
+        y: $m.y,
+        activeWorkspace: {
+          id: ($m.active_tags[0] // 1),
+          name: (($m.active_tags[0] // 1) | tostring)
+        },
+        specialWorkspace: { id: 0, name: "" },
+        reserved: [0, 0, 0, 0],
+        scale: $m.scale,
+        transform: 0,
+        focused: ($m.active == true),
+        dpmsStatus: true,
+        vrr: false,
+        activelyTearing: false,
+        disabled: false,
+        currentFormat: "",
+        availableModes: []
+      }
+    ]'
+}
+
+clients_json() {
+  local monitors clients
+  monitors=$(mmsg get all-monitors 2>/dev/null | jq -c '.monitors')
+  clients=$(mmsg get all-clients 2>/dev/null | jq -c '.clients')
+  jq -n --argjson monitors "$monitors" --argjson clients "$clients" '
+    $clients | map(
+      . as $c |
+      ($monitors | map(.name) | index($c.monitor) // 0) as $monitor_id |
+      {
+        address: ("0x" + ($c.id | tostring)),
+        mapped: ($c.is_visible == true),
+        hidden: ($c.is_visible != true),
+        at: [$c.x, $c.y],
+        size: [$c.width, $c.height],
+        workspace: {
+          id: ($c.tags[0] // 1),
+          name: (($c.tags[0] // 1) | tostring)
+        },
+        floating: ($c.is_floating == true),
+        pseudo: false,
+        monitor: $monitor_id,
+        class: $c.appid,
+        title: $c.title,
+        initialClass: $c.appid,
+        initialTitle: $c.title,
+        pid: $c.pid,
+        xwayland: ($c.is_xwayland == true),
+        pinned: ($c.is_global == true),
+        fullscreen: (if $c.is_fullscreen then 2 else 0 end),
+        fullscreenClient: (if $c.is_fullscreen then 2 else 0 end),
+        grouped: [],
+        tags: [],
+        swallowing: "0x0",
+        focusHistoryID: 0,
+        id: $c.id,
+        appid: $c.appid,
+        is_focused: ($c.is_focused == true)
+      }
+    )'
+}
+
+client_object() {
+  local monitors client
+  monitors=$(mmsg get all-monitors 2>/dev/null | jq -c '.monitors')
+  client=$(mmsg get focusing-client 2>/dev/null | jq -c 'select(.error == null)')
+  [[ -z $client || $client == "null" ]] && {
+    echo '{}'
+    return
+  }
+
+  jq -n --argjson monitors "$monitors" --argjson c "$client" '
+    ($monitors | map(.name) | index($c.monitor) // 0) as $monitor_id |
+    {
+      address: ("0x" + ($c.id | tostring)),
+      mapped: true,
+      hidden: false,
+      at: [$c.x, $c.y],
+      size: [$c.width, $c.height],
+      workspace: { id: ($c.tags[0] // 1), name: (($c.tags[0] // 1) | tostring) },
+      floating: ($c.is_floating == true),
+      pseudo: false,
+      monitor: $monitor_id,
+      class: $c.appid,
+      title: $c.title,
+      initialClass: $c.appid,
+      initialTitle: $c.title,
+      pid: $c.pid,
+      xwayland: ($c.is_xwayland == true),
+      pinned: ($c.is_global == true),
+      fullscreen: (if $c.is_fullscreen then 2 else 0 end),
+      fullscreenClient: (if $c.is_fullscreen then 2 else 0 end),
+      grouped: [],
+      tags: [],
+      swallowing: "0x0",
+      focusHistoryID: 0,
+      id: $c.id,
+      appid: $c.appid,
+      is_focused: true
+    }'
+}
+
+print_monitors_plain() {
+  monitors_json | jq -r '.[] |
+    "Monitor \(.name) (id \(.id)):\n" +
+    "\t\(.width)x\(.height)@\(.refreshRate | tostring | .[0:6]) at \(.x)x\(.y)\n" +
+    "\tdescription: \(.description)\n" +
+    "\tmake: \(.make) model: \(.model) serial: \(.serial)\n" +
+    "\tactive workspace: \(.activeWorkspace.id) (\(.activeWorkspace.name))\n" +
+    "\tspecial workspace: 0 ()\n" +
+    "\tscale: \(.scale)\n" +
+    "\tfocused: \(if .focused then "yes" else "no" end)\n"'
+}
+
+print_clients_plain() {
+  clients_json | jq -r '.[] |
+    "Window \(.address) -> \(.title):\n" +
+    "\tpid: \(.pid)\n" +
+    "\tmonitor: \(.monitor)\n" +
+    "\tclass: \(.class)\n" +
+    "\ttitle: \(.title)\n" +
+    "\taddress: \(.address)\n" +
+    "\tworkspace: \(.workspace.id) (\(.workspace.name))\n" +
+    "\tat: \(.at[0]),\(.at[1])\n" +
+    "\tsize: \(.size[0]),\(.size[1])\n" +
+    "\tfloating: \(if .floating then 1 else 0 end)\n" +
+    "\tfullscreen: \(.fullscreen)\n" +
+    "\tpinned: \(if .pinned then 1 else 0 end)\n"'
+}
+
+print_activewindow_plain() {
+  local win
+  win=$(client_object)
+  if [[ $win == "{}" ]]; then
+    echo "No active window"
+    return
+  fi
+
+  jq -r '"Window \(.address) -> \(.title):\n" +
+    "\tpid: \(.pid)\n" +
+    "\tmonitor: \(.monitor)\n" +
+    "\tclass: \(.class)\n" +
+    "\ttitle: \(.title)\n" +
+    "\taddress: \(.address)\n" +
+    "\tworkspace: \(.workspace.id) (\(.workspace.name))\n" +
+    "\tat: \(.at[0]),\(.at[1])\n" +
+    "\tsize: \(.size[0]),\(.size[1])\n" +
+    "\tfloating: \(if .floating then 1 else 0 end)\n" +
+    "\tfullscreen: \(.fullscreen)\n"' <<<"$win"
+}
+
+devices_json() {
+  mmsg get all-devices 2>/dev/null | jq '
+    def has($type):
+      ((.types // "") | tostring | ascii_downcase | contains($type))
+      or ((.name // "") | ascii_downcase | test($type));
+    {
+      mice: [.devices[] | select(has("trackpad") or has("pointer") or has("mouse")) |
+        {name: .name, type: "mouse", address: (.identifier // .name)}],
+      keyboards: [.devices[] | select(has("keyboard")) |
+        {name: .name, type: "keyboard", address: (.identifier // .name)}],
+      touch: [.devices[] | select(has("touch")) |
+        {name: .name, type: "touch", address: (.identifier // .name)}],
+      tablets: [.devices[] | select(has("tablet") or has("pad")) |
+        {name: .name, type: "tablet", address: (.identifier // .name)}]
+    }'
+}
+
+case "$cmd" in
+monitors)
+  if $json; then monitors_json; else print_monitors_plain; fi
+  ;;
+clients)
+  if $json; then clients_json; else print_clients_plain; fi
+  ;;
+activewindow)
+  if $json; then client_object; else print_activewindow_plain; fi
+  ;;
+activeworkspace)
+  if $json; then
+    mmsg get all-monitors | jq '[.monitors[] | select(.active == true) | .active_tags[0] // 1 | {id: ., name: (. | tostring), monitor: "", monitorID: 0, windows: 0, hasfullscreen: false, lastwindow: "0x0", lastwindowtitle: ""}] | first'
+  else
+    tag=$(mmsg get all-monitors | jq -r '[.monitors[] | select(.active == true) | .active_tags[0] // 1] | first')
+    echo "workspace ID $tag on monitor:"
+    print_monitors_plain | sed -n '1p'
+  fi
+  ;;
+workspaces)
+  if $json; then
+    mmsg get all-monitors | jq '
+      [.monitors | to_entries[] | .key as $mid | .value as $m |
+        $m.tags[] | select(.client_count > 0 or .is_active) |
+        {
+          id: .index,
+          name: (.index | tostring),
+          monitor: $m.name,
+          monitorID: $mid,
+          windows: .client_count,
+          hasfullscreen: false,
+          lastwindow: "0x0",
+          lastwindowtitle: ""
+        }
+      ] | unique_by(.id)'
+  else
+    mmsg get all-monitors | jq -r '.monitors[] | .tags[] | select(.client_count > 0 or .is_active) | "workspace ID \(.index) on monitor \(.index): \(.client_count) windows"'
+  fi
+  ;;
+devices)
+  devices_json
+  ;;
+binds)
+  # Mango does not expose its bind table over IPC. Omarchy's keybinding menu
+  # reads the Mango configuration directly instead.
+  echo '[]'
+  ;;
+cursorpos)
+  mmsg get cursorpos | jq -r '"\(.x), \(.y)"'
+  ;;
+version)
+  echo "Hyprland 0.0.0 (Omarchy Mango compatibility shim)"
+  mmsg get version 2>/dev/null | jq -r '"Mango \(.version)"'
+  ;;
+reload)
+  mmsg dispatch reload_config
+  ;;
+dispatch)
+  func="${1:-}"
+  shift || true
+  [[ $func == "--" ]] && {
+    func="${1:-}"
+    shift || true
+  }
+
+  case "$func" in
+  exec | execr)
+    [[ ${1:-} == "--" ]] && shift
+    cmdline=$(printf '%q ' "$@")
+    setsid sh -c "$cmdline" >/dev/null 2>&1 &
+    ;;
+  focuswindow)
+    target="${1:-}"
+    case "$target" in
+    address:*)
+      address="${target#address:}"
+      address="${address#0x}"
+      mmsg dispatch "focusid client,$((16#$address))"
+      ;;
+    class:* | title:*)
+      field="${target%%:*}"
+      pattern="${target#*:}"
+      id=$(mmsg get all-clients | jq -r --arg field "$field" --arg pattern "$pattern" \
+        '.clients[] | select((if $field == "class" then .appid else .title end) | test($pattern; "i")) | .id' | head -n 1)
+      [[ -n $id ]] && mmsg dispatch "focusid client,$id"
+      ;;
+    *)
+      mmsg dispatch "focusid client,$target"
+      ;;
+    esac
+    ;;
+  focusmonitor)
+    mmsg dispatch "focusmon,${1:-}"
+    ;;
+  dpms)
+    case "${1:-}" in
+    off)
+      for monitor in $(mmsg get all-monitors | jq -r '.monitors[].name'); do
+        mmsg dispatch "sleep_monitor,$monitor"
+      done
+      ;;
+    on)
+      for monitor in $(mmsg get all-monitors | jq -r '.monitors[].name'); do
+        mmsg dispatch "wakeup_monitor,$monitor"
+      done
+      ;;
+    esac
+    ;;
+  switchxkblayout)
+    mmsg dispatch "switch_keyboard_layout,${2:-0}"
+    ;;
+  sendshortcut)
+    shortcut="${1:-}"
+    mods="${shortcut%%,*}"
+    rest="${shortcut#*,}"
+    key="${rest%%,*}"
+    wtype_args=()
+    IFS=',' read -ra mod_list <<<"$mods"
+    for mod in "${mod_list[@]}"; do
+      case "${mod^^}" in
+      SHIFT) wtype_args+=(-M shift) ;;
+      CTRL | CONTROL) wtype_args+=(-M ctrl) ;;
+      ALT) wtype_args+=(-M alt) ;;
+      SUPER | LOGO | WIN) wtype_args+=(-M logo) ;;
+      esac
+    done
+    if command -v wtype >/dev/null 2>&1; then
+      wtype "${wtype_args[@]}" -k "$key"
+    fi
+    ;;
+  workspace)
+    if [[ ${1:-} == special* ]]; then
+      mmsg dispatch toggle_special_tag
+    else
+      mmsg dispatch "view,${1:-1}"
+    fi
+    ;;
+  movetoworkspace)
+    mmsg dispatch "tag,${1:-1}"
+    ;;
+  movetoworkspacesilent)
+    mmsg dispatch "tagsilent,${1:-1}"
+    ;;
+  togglefloating)
+    mmsg dispatch togglefloating
+    ;;
+  fullscreen | fullscreenclient)
+    mmsg dispatch togglefullscreen
+    ;;
+  pin)
+    mmsg dispatch toggleglobal
+    ;;
+  killactive | closewindow)
+    mmsg dispatch killclient
+    ;;
+  togglesplit | split)
+    mmsg dispatch dwindle_toggle_split_direction
+    ;;
+  cyclenext)
+    mmsg dispatch "focusstack,next"
+    ;;
+  cycleprev)
+    mmsg dispatch "focusstack,prev"
+    ;;
+  movefocus)
+    case "${1:-}" in
+    l | left) mmsg dispatch "focusdir,left" ;;
+    r | right) mmsg dispatch "focusdir,right" ;;
+    u | up) mmsg dispatch "focusdir,up" ;;
+    d | down) mmsg dispatch "focusdir,down" ;;
+    esac
+    ;;
+  movewindow)
+    case "${1:-}" in
+    l | left) mmsg dispatch "move_client,left" ;;
+    r | right) mmsg dispatch "move_client,right" ;;
+    u | up) mmsg dispatch "move_client,up" ;;
+    d | down) mmsg dispatch "move_client,down" ;;
+    esac
+    ;;
+  swapwindow)
+    case "${1:-}" in
+    l | left) mmsg dispatch "exchange_client,left" ;;
+    r | right) mmsg dispatch "exchange_client,right" ;;
+    u | up) mmsg dispatch "exchange_client,up" ;;
+    d | down) mmsg dispatch "exchange_client,down" ;;
+    esac
+    ;;
+  resizeactive)
+    x="${1:-0}"
+    y="${2:-0}"
+    [[ $x != -* && $x != +* ]] && x="+$x"
+    [[ $y != -* && $y != +* ]] && y="+$y"
+    mmsg dispatch "resizewin,$x,$y"
+    ;;
+  moveactive)
+    mmsg dispatch "movewin,${1:-0},${2:-0}"
+    ;;
+  togglespecialworkspace)
+    mmsg dispatch toggle_special_tag
+    ;;
+  exit | quit)
+    mmsg dispatch quit
+    ;;
+  tagwindow | setprop | submap | pseudo | focusurgent | movecursor | resizewindow | resizeactiveexact)
+    # No Mango equivalent; keep scripts moving.
+    ;;
+  *)
+    echo "hyprctl: ignoring unsupported dispatch '$func'" >&2
+    ;;
+  esac
+  ;;
+keyword)
+  assignment="${1:-}"
+  key="${assignment%% *}"
+  value="${assignment#* }"
+  [[ $key == "$assignment" ]] && value=""
+
+  if [[ $key =~ ^device\[(.*)\]:([^:]+)$ ]]; then
+    device="${BASH_REMATCH[1]}"
+    option="${BASH_REMATCH[2]}"
+    case "$option" in
+    enabled)
+      case "${value,,}" in
+      true | 1 | yes | on) value=0 ;;
+      false | 0 | no | off) value=1 ;;
+      esac
+      option="send_events_mode"
+      ;;
+    esac
+    state_dir="$HOME/.local/state/omarchy/toggles/mango"
+    mkdir -p "$state_dir"
+    state_file="$state_dir/device-$(printf '%s' "$device" | md5sum | cut -c1-12).conf"
+    printf 'device_rule=name:%s,%s:%s\n' "$device" "$option" "$value" >"$state_file"
+    mmsg dispatch reload_config >/dev/null 2>&1
+    exit 0
+  fi
+
+  case "$key" in
+  cursor:invisible | debug:suppress_errors | misc:disable_hyprland_logo)
+    ;;
+  general:border_size) mmsg dispatch "setoption,border_px,$value" ;;
+  general:gaps_in)
+    mmsg dispatch "setoption,gap_inner_horizontal,$value"
+    mmsg dispatch "setoption,gap_inner_vertical,$value"
+    ;;
+  general:gaps_out)
+    mmsg dispatch "setoption,gap_outer_horizontal,$value"
+    mmsg dispatch "setoption,gap_outer_vertical,$value"
+    ;;
+  decoration:rounding) mmsg dispatch "setoption,border_radius,$value" ;;
+  decoration:active_opacity) mmsg dispatch "setoption,focused_opacity,$value" ;;
+  decoration:inactive_opacity) mmsg dispatch "setoption,unfocused_opacity,$value" ;;
+  animations:enabled) mmsg dispatch "setoption,animations,$value" ;;
+  *)
+    echo "hyprctl: ignoring unsupported keyword '$key'" >&2
+    ;;
+  esac
+  ;;
+hyprsunset)
+  # `hyprctl hyprsunset temperature [N]`: implemented by omarchy-toggle-nightlight.
+  case "${1:-}" in
+  temperature)
+    if [[ -n ${2:-} ]]; then
+      command -v gammastep >/dev/null 2>&1 && gammastep -O "$2" >/dev/null 2>&1
+    fi
+    ;;
+  esac
+  ;;
+"")
+  echo "Usage: hyprctl [monitors|clients|activewindow|devices|binds|dispatch|keyword|reload] [-j]" >&2
+  exit 1
+  ;;
+*)
+  echo "hyprctl: unsupported command '$cmd'" >&2
+  exit 1
+  ;;
+esac

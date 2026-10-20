@@ -55,7 +55,7 @@ if pgrep -x waybar >/dev/null; then
 fi
 omarchy-restart-swayosd
 omarchy-restart-terminal
-omarchy-restart-hyprctl
+omarchy-restart-mango
 omarchy-restart-btop
 omarchy-restart-opencode
 omarchy-restart-mako

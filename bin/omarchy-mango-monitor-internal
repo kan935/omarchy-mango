@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# omarchy:summary=Enable, disable, toggle, or recover the internal laptop display
+# omarchy:args=<on|off|toggle|recover>
+
+MONITOR_CONF="$HOME/.config/mango/monitors.conf"
+STATE_FILE="$HOME/.local/state/omarchy/toggles/mango/internal-monitor-disabled"
+MARK_BEGIN="# >>> omarchy:mango-internal-disable"
+MARK_END="# <<< omarchy:mango-internal-disable"
+
+is_disabled() {
+  grep -qF "$MARK_BEGIN" "$MONITOR_CONF" 2>/dev/null
+}
+
+reload() {
+  mmsg dispatch reload_config >/dev/null 2>&1
+}
+
+enable() {
+  if is_disabled; then
+    tmp=$(mktemp)
+    awk -v begin="$MARK_BEGIN" -v end="$MARK_END" '
+      $0 == begin { skip = 1; next }
+      $0 == end   { skip = 0; next }
+      !skip       { print }
+    ' "$MONITOR_CONF" >"$tmp"
+    mv "$tmp" "$MONITOR_CONF"
+    rm -f "$STATE_FILE"
+    reload
+    notify-send -u low "󰍹    Laptop display enabled"
+  fi
+}
+
+disable() {
+  if ! omarchy-hw-external-monitors; then
+    notify-send -u low "󰍹    Can't disable the only active display"
+    exit 1
+  fi
+
+  if ! is_disabled; then
+    mkdir -p "$(dirname "$MONITOR_CONF")"
+    touch "$MONITOR_CONF"
+    tmp=$(mktemp)
+    {
+      echo "$MARK_BEGIN"
+      echo "monitor_rule=name:^(eDP|LVDS|DSI)-.*,disable:1"
+      echo "$MARK_END"
+      cat "$MONITOR_CONF"
+    } >"$tmp"
+    mv "$tmp" "$MONITOR_CONF"
+    mkdir -p "$(dirname "$STATE_FILE")"
+    touch "$STATE_FILE"
+    reload
+    notify-send -u low "󰍹    Laptop display disabled"
+  fi
+}
+
+recover() {
+  if ! omarchy-hw-external-monitors && is_disabled; then
+    enable
+  fi
+}
+
+case "$1" in
+  on) enable ;;
+  off) disable ;;
+  toggle)
+    if is_disabled; then enable; else disable; fi
+    ;;
+  recover) recover ;;
+  *)
+    echo "Usage: $(basename "$0") {on|off|toggle|recover}" >&2
+    exit 1
+    ;;
+esac

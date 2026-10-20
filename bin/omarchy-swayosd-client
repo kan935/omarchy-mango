@@ -3,4 +3,4 @@
 # omarchy:summary=Wrapper for swayosd-client that targets the currently focused monitor.
 # omarchy:args=<swayosd-client-args...>
 
-exec swayosd-client --monitor "$(omarchy-hyprland-monitor-focused)" "$@"
+exec swayosd-client --monitor "$(omarchy-mango-monitor-focused)" "$@"

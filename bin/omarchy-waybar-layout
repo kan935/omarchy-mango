@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# omarchy:summary=Print the active Mango layout for Waybar
+# omarchy:hidden=true
+
+monitors=$(mmsg get all-monitors 2>/dev/null) || exit 0
+
+symbol=$(jq -r 'first(.monitors[] | select(.active)) | .layout_symbol // empty' <<<"$monitors")
+[[ -n $symbol ]] || exit 0
+
+name=$(mmsg get layouts 2>/dev/null |
+  jq -r --arg symbol "$symbol" 'first(.layouts[] | select(.symbol == $symbol)) | .name // empty')
+
+jq -nc --arg text "$symbol" --arg tooltip "${name:-Mango layout}" \
+  '{text: $text, tooltip: $tooltip, class: ($text | ascii_downcase)}'

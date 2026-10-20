@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# omarchy:summary=Start an Omarchy desktop session using Mango
+# omarchy:hidden=true
+
+OMARCHY_PATH="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+export OMARCHY_PATH
+export PATH="$OMARCHY_PATH/bin:$HOME/.local/bin:$PATH"
+
+export XDG_CURRENT_DESKTOP="Mango:Omarchy"
+export XDG_SESSION_DESKTOP="Omarchy"
+export XDG_SESSION_TYPE="wayland"
+
+# Terminal, editor, and screenshot preferences shared with the rest of Omarchy.
+if [[ -f $HOME/.config/uwsm/default ]]; then
+  source "$HOME/.config/uwsm/default"
+fi
+
+# Display managers normally provide this. Set it when starting from a TTY.
+if [[ -z ${XDG_RUNTIME_DIR:-} ]]; then
+  export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+fi
+
+# A display manager supplies a session bus. Start one when launched from a TTY.
+if [[ -z ${DBUS_SESSION_BUS_ADDRESS:-} ]] && command -v dbus-run-session >/dev/null 2>&1; then
+  exec dbus-run-session -- mango "$@"
+fi
+
+exec mango "$@"

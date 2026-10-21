@@ -38,6 +38,8 @@ xorg-x11-server-Xwayland
 qt5-qtwayland
 qt6-qtwayland
 qt6-qtimageformats
+qt5ct
+qt6ct
 libxkbcommon-utils
 
 # Input, audio, and hardware controls
@@ -130,3 +132,5 @@ google-noto-sans-fonts
 google-noto-serif-fonts
 google-noto-emoji-fonts
 adwaita-icon-theme
+adw-gtk3-theme
+yaru-icon-theme

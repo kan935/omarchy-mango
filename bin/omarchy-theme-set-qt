@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# omarchy:summary=Apply the current theme to Qt5 and Qt6 applications
+# omarchy:hidden=true
+
+THEME_DIR="$HOME/.config/omarchy/current/theme"
+QT_COLORS="$THEME_DIR/qt-color.conf"
+ICONS_THEME="Yaru-blue"
+
+if [[ -f $THEME_DIR/icons.theme ]]; then
+  ICONS_THEME=$(<"$THEME_DIR/icons.theme")
+fi
+
+if [[ ! -f $QT_COLORS ]]; then
+  echo "Qt color scheme not found: $QT_COLORS" >&2
+  exit 1
+fi
+
+set_qt_setting() {
+  local file="$1" key="$2" value="$3"
+
+  if grep -q "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    return
+  fi
+
+  if ! grep -q '^\[Appearance\]' "$file"; then
+    printf '[Appearance]\n' >>"$file"
+  fi
+
+  sed -i "/^\[Appearance\]/a ${key}=${value}" "$file"
+}
+
+for version in 5 6; do
+  config_dir="$HOME/.config/qt${version}ct"
+  config="$config_dir/qt${version}ct.conf"
+
+  mkdir -p "$config_dir/colors"
+  ln -snf "$QT_COLORS" "$config_dir/colors/omarchy.conf"
+  [[ -f $config ]] || printf '[Appearance]\n' >"$config"
+
+  set_qt_setting "$config" color_scheme_path "$config_dir/colors/omarchy.conf"
+  set_qt_setting "$config" custom_palette true
+  set_qt_setting "$config" icon_theme "$ICONS_THEME"
+  set_qt_setting "$config" standard_dialogs xdgdesktopportal
+  # Preserve an explicitly chosen style; Fusion is the portable default.
+  grep -q '^style=' "$config" || set_qt_setting "$config" style Fusion
+done

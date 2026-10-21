@@ -1,20 +1,75 @@
 #!/bin/bash
 
-# omarchy:summary=Apply the current theme to GNOME color mode and icon settings
+# omarchy:summary=Apply the current theme to GNOME color mode, GTK, and icon settings
 # omarchy:hidden=true
 
-if [[ -f ~/.config/omarchy/current/theme/light.mode ]]; then
-  gsettings set org.gnome.desktop.interface color-scheme "prefer-light"
-  gsettings set org.gnome.desktop.interface gtk-theme "Adwaita"
+THEME_DIR="$HOME/.config/omarchy/current/theme"
+ICONS_THEME="$THEME_DIR/icons.theme"
+
+if [[ -d /usr/share/themes/adw-gtk3-dark ]]; then
+  GTK_THEME_LIGHT="adw-gtk3"
+  GTK_THEME_DARK="adw-gtk3-dark"
 else
-  gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
-  gsettings set org.gnome.desktop.interface gtk-theme "Adwaita-dark"
+  GTK_THEME_LIGHT="Adwaita"
+  GTK_THEME_DARK="Adwaita-dark"
 fi
 
-# Change gnome icon theme color
-GNOME_ICONS_THEME=~/.config/omarchy/current/theme/icons.theme
-if [[ -f $GNOME_ICONS_THEME ]]; then
-  gsettings set org.gnome.desktop.interface icon-theme "$(<$GNOME_ICONS_THEME)"
+if [[ -f $THEME_DIR/light.mode ]]; then
+  GTK_THEME="$GTK_THEME_LIGHT"
+  PREFER_DARK=0
+  COLOR_SCHEME="prefer-light"
 else
-  gsettings set org.gnome.desktop.interface icon-theme "Yaru-blue"
+  GTK_THEME="$GTK_THEME_DARK"
+  PREFER_DARK=1
+  COLOR_SCHEME="prefer-dark"
 fi
+
+if [[ -f $ICONS_THEME ]]; then
+  GNOME_ICONS_THEME=$(<"$ICONS_THEME")
+else
+  GNOME_ICONS_THEME="Yaru-blue"
+fi
+
+# gsettings needs a user DBus session and is skipped during a TTY install.
+if command -v gsettings >/dev/null 2>&1 && [[ -n ${DBUS_SESSION_BUS_ADDRESS:-} ]]; then
+  gsettings set org.gnome.desktop.interface color-scheme "$COLOR_SCHEME"
+  gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME"
+  gsettings set org.gnome.desktop.interface icon-theme "$GNOME_ICONS_THEME"
+fi
+
+set_gtk_setting() {
+  local file="$1" key="$2" value="$3"
+
+  if [[ ! -f $file ]]; then
+    printf '[Settings]\n%s=%s\n' "$key" "$value" >"$file"
+  elif grep -q "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  elif grep -q '^\[Settings\]' "$file"; then
+    sed -i "/^\[Settings\]/a ${key}=${value}" "$file"
+  else
+    printf '\n[Settings]\n%s=%s\n' "$key" "$value" >>"$file"
+  fi
+}
+
+# Keep an existing hand-written stylesheet before replacing it with the
+# theme-owned one.
+link_gtk_css() {
+  local dir="$1" version="$2"
+
+  if [[ -f $dir/gtk.css && ! -L $dir/gtk.css ]]; then
+    cp -a "$dir/gtk.css" "$dir/gtk.css.before-omarchy"
+  fi
+
+  ln -snf "$THEME_DIR/gtk-${version}.0.css" "$dir/gtk.css"
+}
+
+for version in 3 4; do
+  dir="$HOME/.config/gtk-${version}.0"
+  mkdir -p "$dir"
+
+  set_gtk_setting "$dir/settings.ini" gtk-theme-name "$GTK_THEME"
+  set_gtk_setting "$dir/settings.ini" gtk-application-prefer-dark-theme "$PREFER_DARK"
+  set_gtk_setting "$dir/settings.ini" gtk-icon-theme-name "$GNOME_ICONS_THEME"
+
+  link_gtk_css "$dir" "$version"
+done

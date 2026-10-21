@@ -205,6 +205,13 @@ install_session_file() {
     /usr/local/share/wayland-sessions/omarchy-mango.desktop
 }
 
+install_browser_policy_dir() {
+  log "Preparing Chromium and Helium theme policy directory"
+  sudo -v || die "sudo access is required to create the browser policy directory"
+  sudo mkdir -p /etc/chromium/policies/managed
+  sudo chmod a+rw /etc/chromium/policies/managed
+}
+
 prepare_theme() {
   local current="$CONFIG_DIR/omarchy/current"
   local theme_source="$OMARCHY_PATH/themes/$THEME"
@@ -233,6 +240,13 @@ prepare_theme() {
   mkdir -p "$CONFIG_DIR/btop/themes" "$CONFIG_DIR/mako"
   ln -snf "$current/theme/btop.theme" "$CONFIG_DIR/btop/themes/current.theme"
   ln -snf "$current/theme/mako.ini" "$CONFIG_DIR/mako/config"
+
+  PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-gnome" ||
+    warn "Could not apply the GTK theme"
+  PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-qt" ||
+    warn "Could not apply the Qt theme"
+  PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-browser" ||
+    warn "Could not apply the browser theme"
 }
 
 mark_migrations_applied() {
@@ -281,6 +295,7 @@ fi
 copy_program_files
 copy_user_config
 install_session_file
+install_browser_policy_dir
 prepare_theme
 install_lock_auth
 mark_migrations_applied

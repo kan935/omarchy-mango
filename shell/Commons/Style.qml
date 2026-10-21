@@ -9,9 +9,9 @@ import Quickshell.Io
 // rounding, gap to screen edges, state affordances, spacing, typography
 // scale, and bar dimensions.
 //
-// `cornerRadius` and `gapsOut` follow Mango's looknfeel defaults. The
-// shell cannot query Mango for live option values, so these stay fixed
-// at the Quattro defaults rather than racing a compositor reload.
+// `cornerRadius` and `gapsOut` follow Mango's looknfeel defaults. Mango does
+// not expose either over IPC without a full rule parse, so the shell keeps
+// its tuned values and lets themes override them in shell.toml.
 //
 // Typography, spacing, and bar size come from theme/shell.toml.
 // `[font] base-size` is the rem root; every `Style.font.<token>` derives
@@ -338,11 +338,31 @@ QtObject {
   readonly property QtObject bar: QtObject {
     readonly property int sizeHorizontal: root.barToken("size-horizontal", 26)
     readonly property int sizeVertical:   root.barToken("size-vertical",   28)
+    // Calibrated notch cutout height in logical px, for panels whose real
+    // cutout differs from the derived default (see BarModel.notchHeight).
+    // 0 means derive it. Physical alignment, so it never scales with font.
+    readonly property int notchHeight: {
+      var v = Number(root.barOverrides["notch-height"])
+      return (isFinite(v) && v > 0) ? Math.round(v) : 0
+    }
     readonly property int iconSlot:       root.barToken("icon-slot",       27)
     readonly property int iconCanvas:     root.barToken("icon-canvas",     16)
     readonly property int iconFont:       root.barToken("icon-font",       13)
+    readonly property int iconSize:       Math.min(iconCanvas, root.barToken("icon-size", 12))
     readonly property int statusSlot:     root.barToken("status-slot",     21)
   }
+
+  // Off with Hyprland's own animations, as `omarchy toggle animations` turns
+  // them off for machines that render on the CPU. Every shell animation runs
+  // for Style.duration(ms), which is then 0, so nothing is drawn in between.
+  property bool reduceMotion: false
+
+  function duration(ms) {
+    return reduceMotion ? 0 : ms
+  }
+
+  function refresh() {}
+  function scheduleRefresh() {}
 
   // Pull typography, bar dimensions, state tokens, and spacing out of the
   // shell.toml dict that Color already parsed. Called by Commons.Color.loadShell so
@@ -371,7 +391,9 @@ QtObject {
       } else if (section === "bar") {
         if (key === "scale-with-font") {
           nextBarScaleWithFont = boolToken(raw, nextBarScaleWithFont)
-        } else if (key === "size-horizontal" || key === "size-vertical") {
+        } else if (key === "size-horizontal" || key === "size-vertical" || key === "notch-height"
+          || key === "icon-slot" || key === "icon-canvas" || key === "icon-font"
+          || key === "icon-size" || key === "status-slot") {
           var b = parseInt(raw, 10)
           if (isFinite(b)) barOut[key] = b
         }
@@ -408,11 +430,6 @@ QtObject {
   // Resolve the fontconfig alias to a concrete family name. `omarchy font
   // set <name>` rewrites ~/.config/fontconfig/fonts.conf and restarts the
   // shell, but rerun on file change anyway so manual edits propagate too.
-  // The Mango port uses fixed structural values, so a theme change only needs
-  // the reactive Color singleton to update. Keep the Quattro IPC contract.
-  function refresh() {}
-  function scheduleRefresh() {}
-
   function resolveFontFamily() {
     fcMatchProc.running = true
   }

@@ -12,45 +12,45 @@ BarWidget {
   property string layoutFull: ""
   property bool multipleLayouts: false
   property var layoutBriefs: ({})
+  property bool layoutsRead: false
+  property bool briefsRequested: false
+  readonly property var inputState: InputMethodState.state
+  readonly property bool multipleInputs: (inputState.methods || []).length > 1
   readonly property string layoutLabel: KeyboardLayoutModel.shortLabel(layoutFull, layoutBriefs)
+  readonly property string inputLabel: KeyboardLayoutModel.inputLabel(inputState, layoutLabel)
+  readonly property bool needsBriefs: layoutsRead && (multipleLayouts || multipleInputs)
+  onNeedsBriefsChanged: loadBriefs()
 
   function readLayout(line) {
     try {
       var layout = JSON.parse(String(line || "")).layout
-      if (typeof layout === "string") root.layoutFull = layout
+      if (typeof layout === "string") {
+        root.layoutFull = layout
+        root.layoutsRead = true
+      }
     } catch (error) {
     }
   }
 
+  function loadBriefs() {
+    if (!needsBriefs || briefsRequested) return
+    briefsRequested = true
+    briefsProc.running = true
+  }
+
   function cycleLayout() {
-    if (!root.bar || !root.layoutFull) return
+    if (!root.bar) return
     root.bar.run("mmsg dispatch switch_layout")
   }
 
   Component.onCompleted: {
-    briefsProc.running = true
     layoutsProc.running = true
-  }
-
-  visible: multipleLayouts && layoutLabel !== ""
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
-
-  WidgetButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: root.layoutLabel
-    fontSize: Style.font.caption
-    horizontalMargin: 6
-    tooltipText: root.layoutFull
-    onPressed: function() { root.cycleLayout() }
+    watchProc.running = true
   }
 
   Process {
     id: watchProc
     command: ["mmsg", "watch", "keyboardlayout"]
-    running: true
     stdout: SplitParser { onRead: function(line) { root.readLayout(line) } }
     onExited: watchRestart.start()
   }
@@ -61,10 +61,15 @@ BarWidget {
     onTriggered: watchProc.running = true
   }
 
+  // Mango has no keyboard-device list, so the xkb layout list in the config
+  // decides whether there is more than one layout to switch between.
   Process {
     id: layoutsProc
-    command: ["bash", "-c", "layouts=$(for f in \"$HOME/.config/mango/input.conf\" \"$OMARCHY_PATH/default/mango/input.conf\" /etc/mango/config.conf; do [[ -f $f ]] && sed -n 's/^[[:space:]]*xkb_rules_layout[[:space:]]*=[[:space:]]*//p' \"$f\"; done | tail -n 1); [[ $layouts == *,* ]] && echo yes || echo no"]
-    stdout: SplitParser { onRead: function(line) { root.multipleLayouts = String(line).trim() === "yes" } }
+    command: ["bash", "-c", "for f in \"$HOME/.config/mango/input.conf\" \"$OMARCHY_PATH/default/mango/input.conf\" /etc/mango/config.conf; do [[ -f $f ]] && sed -n 's/^[[:space:]]*xkb_rules_layout[[:space:]]*=[[:space:]]*//p' \"$f\"; done | tail -n 1"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.multipleLayouts = String(text || "").indexOf(",") !== -1
+    }
   }
 
   Process {
@@ -73,6 +78,29 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.layoutBriefs = KeyboardLayoutModel.layoutBriefs(text)
+    }
+  }
+
+  // Mango has no per-device layout list, so keep the current layout visible
+  // even when the user has only one configured layout.
+  visible: inputLabel !== ""
+  implicitWidth: button.implicitWidth
+  implicitHeight: button.implicitHeight
+
+  WidgetButton {
+    id: button
+    anchors.fill: parent
+    bar: root.bar
+    text: root.inputLabel
+    fontSize: Style.font.caption
+    horizontalMargin: 6
+    tooltipText: KeyboardLayoutModel.inputTooltip(root.inputState, root.layoutFull, root.multipleLayouts)
+    onPressed: function(button) {
+      if (root.multipleInputs && button === Qt.LeftButton) {
+        InputMethodState.cycle()
+      } else if (root.multipleLayouts) {
+        root.cycleLayout()
+      }
     }
   }
 }

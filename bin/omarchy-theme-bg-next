@@ -13,10 +13,6 @@ TOTAL=${#BACKGROUNDS[@]}
 
 if (( TOTAL == 0 )); then
   notify-send "No background was found for theme" -t 2000
-  if ! omarchy-shell shell ping >/dev/null 2>&1; then
-    pkill -x swaybg
-    setsid uwsm-app -- swaybg --color '#000000' >/dev/null 2>&1 &
-  fi
 else
   # Get current background from symlink
   if [[ -L $CURRENT_BACKGROUND_LINK ]]; then
@@ -47,10 +43,5 @@ else
   # Set new background symlink
   ln -nsf "$NEW_BACKGROUND" "$CURRENT_BACKGROUND_LINK"
 
-  if omarchy-shell shell ping >/dev/null 2>&1; then
-    omarchy-shell -q background refresh >/dev/null 2>&1 || true
-  else
-    pkill -x swaybg
-    setsid uwsm-app -- swaybg -i "$CURRENT_BACKGROUND_LINK" -m fill >/dev/null 2>&1 &
-  fi
+  omarchy-shell -q background refresh >/dev/null 2>&1 || true
 fi

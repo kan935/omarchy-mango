@@ -77,7 +77,6 @@ libreoffice-fresh
 llvm
 localsend
 luarocks
-mako
 man-db
 mariadb-libs
 mise
@@ -93,13 +92,11 @@ neovim
 obs-studio
 obsidian
 omarchy-nvim
-omarchy-walker
 pamixer
 pinta
 playerctl
 plocate
 plymouth
-polkit-gnome
 postgresql-libs
 power-profiles-daemon
 python-gobject
@@ -117,8 +114,6 @@ spotify
 socat
 starship
 sushi
-swaybg
-swayosd
 system-config-printer
 tesseract
 tesseract-data-eng
@@ -135,7 +130,6 @@ ufw-docker
 unzip
 usage
 uwsm
-waybar
 whois
 wireless-regdb
 wiremix

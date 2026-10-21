@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# omarchy:summary=Ensure Waybar icon offering the available update is removed
+# omarchy:summary=Clear the Quattro system-update indicator
+# omarchy:hidden=true
 
-pkill -RTMIN+7 waybar
+omarchy-shell -q omarchy.system-update clear >/dev/null 2>&1 || true
 exit 0

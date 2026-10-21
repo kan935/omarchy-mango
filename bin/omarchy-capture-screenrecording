@@ -2,7 +2,7 @@
 
 # omarchy:summary=Start or stop screen recording
 # omarchy:group=capture
-# omarchy:args=[--with-desktop-audio] [--with-microphone-audio] [--with-webcam] [--webcam-device=<device>] [--stop-recording]
+# omarchy:args=[--with-desktop-audio] [--with-microphone-audio] [--with-webcam] [--webcam-device=<device>] [--stop-recording] [--status]
 # omarchy:examples=omarchy screenrecord | omarchy capture screenrecord --with-desktop-audio
 # omarchy:aliases=omarchy screenrecord
 #
@@ -10,6 +10,12 @@
 # gpu-screen-recorder. wf-recorder can capture one audio source per recording;
 # when both desktop and microphone audio are requested, desktop audio wins and
 # a notification says so.
+
+# The bar polls this before the output directory exists, so answer it first.
+if [[ " $* " == *" --status "* ]]; then
+  pgrep -x wf-recorder >/dev/null
+  exit
+fi
 
 [[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
 OUTPUT_DIR="${OMARCHY_SCREENRECORD_DIR:-${XDG_VIDEOS_DIR:-$HOME/Videos}}"
@@ -242,7 +248,8 @@ stop_screenrecording() {
 }
 
 toggle_screenrecording_indicator() {
-  pkill -RTMIN+8 waybar
+  # The Quattro recording indicator polls this script's --status.
+  :
 }
 
 screenrecording_active() {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Display Mango keybindings defined in your configuration using walker for an interactive search menu.
+# omarchy:summary=Display Mango keybindings defined in your configuration in the Omarchy menu.
 
 declare -A BINDINGS
 
@@ -181,5 +181,5 @@ else
   menu_height=$((monitor_height * 40 / 100))
 
   output_keybindings |
-    walker --dmenu -p 'Keybindings' --width 800 --height "$menu_height"
+    omarchy-menu-select 'Keybindings' -- --width 800 --height "$menu_height"
 fi

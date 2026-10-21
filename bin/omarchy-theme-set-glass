@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Glassy-surface compatibility shim for Mango
+# omarchy:args=[theme-dir]
+# omarchy:hidden=true
+#
+# Mango does not blur layer or window surfaces, so Quattro's glassy bar uses
+# alpha only and terminal/GTK glass is left to each application's own theme.
+
+exit 0

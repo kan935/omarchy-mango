@@ -103,5 +103,5 @@ fi
 brightnessctl -d "$device" set "$step" >/dev/null
 
 if (( ! no_osd )); then
-  omarchy-swayosd-brightness "$(backlight_brightness)" >/dev/null 2>&1 || true
+  omarchy-osd -i brightness -p "$(backlight_brightness)" >/dev/null 2>&1 || true
 fi

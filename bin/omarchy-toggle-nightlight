@@ -1,31 +1,62 @@
 #!/bin/bash
 
 # omarchy:summary=Toggle nightlight screen temperature with gammastep
-# omarchy:examples=omarchy toggle nightlight
+# omarchy:args=[toggle|on|off|--status]
+# omarchy:examples=omarchy toggle nightlight | omarchy-toggle-nightlight --status
 
 ON_TEMP=4000
 OFF_TEMP=6500
 STATE_FILE="$HOME/.local/state/omarchy/toggles/mango/nightlight-on"
 
-restart_nightlighted_waybar() {
-  if grep -q "custom/nightlight" ~/.config/waybar/config.jsonc 2>/dev/null; then
-    omarchy-restart-waybar
+status() {
+  if [[ -f $STATE_FILE ]]; then
+    printf '{"enabled":true,"temperature":%s}\n' "$ON_TEMP"
+  else
+    printf '{"enabled":false,"temperature":%s}\n' "$OFF_TEMP"
   fi
 }
 
-if [[ -f $STATE_FILE ]]; then
-  gammastep -O "$OFF_TEMP" >/dev/null 2>&1 || true
-  rm -f "$STATE_FILE"
-  notify-send -u low "   Daylight screen temperature"
-else
+apply_temperature() {
+  local temperature=$1
+
+  # Keep one gammastep instance. The old one would otherwise keep its gamma
+  # ramp and compete with the new temperature.
+  pkill -9 -x gammastep >/dev/null 2>&1 || true
+  setsid gammastep -P -O "$temperature" >/dev/null 2>&1 &
+}
+
+turn_on() {
   if ! command -v gammastep >/dev/null 2>&1; then
     notify-send -u low "Nightlight unavailable" "Install gammastep to use nightlight" -t 3000
     exit 1
   fi
-  gammastep -O "$ON_TEMP" >/dev/null 2>&1 || true
+  apply_temperature "$ON_TEMP"
   mkdir -p "$(dirname "$STATE_FILE")"
   touch "$STATE_FILE"
   notify-send -u low "  Nightlight screen temperature"
-fi
+}
 
-restart_nightlighted_waybar
+turn_off() {
+  apply_temperature "$OFF_TEMP"
+  rm -f "$STATE_FILE"
+  notify-send -u low "   Daylight screen temperature"
+}
+
+case "${1:-toggle}" in
+  toggle)
+    if [[ -f $STATE_FILE ]]; then turn_off; else turn_on; fi
+    ;;
+  on | night | true)
+    turn_on
+    ;;
+  off | day | false)
+    turn_off
+    ;;
+  --status | status)
+    status
+    ;;
+  *)
+    echo "Usage: omarchy-toggle-nightlight [toggle|on|off|--status]" >&2
+    exit 1
+    ;;
+esac

@@ -8,4 +8,4 @@ if omarchy-shell shell ping >/dev/null 2>&1; then
   exit 0
 fi
 
-exec omarchy-launch-walker -m clipboard
+exit 1

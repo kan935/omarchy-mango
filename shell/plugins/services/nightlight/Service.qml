@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "NightlightModel.js" as NightlightModel
+import qs.Commons
 
 Item {
   id: root
@@ -52,7 +53,7 @@ Item {
   function runApply(temp) {
     var enabled = Number(temp) < dayTemperature
     applyProcess.command = ["bash", "-c",
-      "if " + (enabled ? "true" : "false") + "; then mkdir -p \"$(dirname \"$1\")\" && touch \"$1\"; else rm -f \"$1\"; fi; gammastep -O " + Number(temp),
+      "if " + (enabled ? "true" : "false") + "; then mkdir -p \"$(dirname \"$1\")\" && touch \"$1\"; else rm -f \"$1\"; fi; pkill -9 -x gammastep >/dev/null 2>&1 || true; setsid gammastep -P -O " + Number(temp) + " >/dev/null 2>&1 &",
       "omarchy-nightlight", stateFile]
     applyProcess.running = true
   }
@@ -92,7 +93,7 @@ Item {
 
   Component.onCompleted: refresh()
 
-  IpcHandler {
+  ShellIpc {
     target: "nightlight"
 
     function status(): string {

@@ -57,18 +57,6 @@ if omarchy-shell shell ping >/dev/null 2>&1; then
   omarchy-shell -q shell applyTheme "$colors_payload" "$shell_payload" || true
 fi
 
-# Restart legacy components only when they are actually running. Quattro
-# owns the bar, OSD, and notifications, so starting those here would leave
-# duplicates behind.
-if pgrep -x waybar >/dev/null; then
-  omarchy-restart-waybar
-fi
-if pgrep -x swayosd-server >/dev/null; then
-  omarchy-restart-swayosd
-fi
-if pgrep -x mako >/dev/null; then
-  omarchy-restart-mako
-fi
 omarchy-restart-terminal
 omarchy-restart-mango
 omarchy-restart-btop

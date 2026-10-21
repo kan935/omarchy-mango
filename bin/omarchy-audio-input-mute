@@ -16,14 +16,8 @@ fi
 
 omarchy-brightness-keyboard-mute "$led"
 
-if omarchy-shell shell ping >/dev/null 2>&1; then
-  if [[ $led == "on" ]]; then
-    omarchy-osd -i microphone-muted -m "$osd_message"
-  else
-    omarchy-osd -i microphone -m "$osd_message"
-  fi
+if [[ $led == "on" ]]; then
+  omarchy-osd -i microphone-muted -m "$osd_message"
 else
-  omarchy-swayosd-client \
-    --custom-message "$osd_message" \
-    --custom-icon "$osd_icon"
+  omarchy-osd -i microphone -m "$osd_message"
 fi

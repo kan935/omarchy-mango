@@ -25,85 +25,27 @@ stop_session_process() {
   done
 }
 
-quattro=false
-if omarchy-cmd-present quickshell && [[ -f $OMARCHY_PATH/shell/shell.qml ]]; then
-  quattro=true
+# Quattro owns the bar, wallpaper, notifications, OSD, polkit agent, and
+# idle/lock handling. Stop the v3 daemons from this session so they do not
+# fight it. Keep the match scoped to this Wayland runtime: a headless test
+# or another login on the same user must not lose its desktop.
+if [[ ${XDG_RUNTIME_DIR:-} == "/run/user/$(id -u)" ]]; then
+  systemctl --user stop app-walker@autostart.service swayosd-server.service 2>/dev/null || true
 fi
+stop_session_process walker
+stop_session_process waybar
+stop_session_process mako
+stop_session_process swaybg
+stop_session_process swayidle
+stop_session_process swayosd-server
 
-if $quattro; then
-  # Quattro owns the bar, wallpaper, notifications, OSD, polkit agent, and
-  # idle/lock handling. Stop the v3 daemons from this session so they do not
-  # fight it. Keep the match scoped to this Wayland runtime: a headless test
-  # or another login on the same user must not lose its desktop.
-  if [[ ${XDG_RUNTIME_DIR:-} == "/run/user/$(id -u)" ]]; then
-    systemctl --user stop app-walker@autostart.service swayosd-server.service 2>/dev/null || true
-  fi
-  stop_session_process walker
-  stop_session_process waybar
-  stop_session_process mako
-  stop_session_process swaybg
-  stop_session_process swayidle
-
-  if ! pgrep -f "$OMARCHY_PATH/shell" >/dev/null 2>&1; then
-    setsid omarchy-launch-shell >/dev/null 2>&1 &
-  fi
-else
-  # Wallpaper
-  background="$HOME/.config/omarchy/current/background"
-  if [[ -f $background ]]; then
-    start_once swaybg swaybg -i "$background" -m fill
-  else
-    start_once swaybg swaybg --color '#1a1b26'
-  fi
-
-  # Notification daemon
-  start_once mako mako
-
-  # Status bar (respects "omarchy toggle waybar")
-  if ! omarchy-toggle-enabled waybar-off; then
-    start_once waybar waybar
-  fi
+if ! pgrep -f "$OMARCHY_PATH/shell" >/dev/null 2>&1; then
+  setsid omarchy-launch-shell >/dev/null 2>&1 &
 fi
 
 # Input method
 if command -v fcitx5 >/dev/null 2>&1; then
   start_once fcitx5 fcitx5 -d --disable notificationitem
-fi
-
-if ! $quattro; then
-  # Polkit agent (Fedora packages lxpolkit or mate-polkit)
-  polkit_agent=""
-  for candidate in \
-    /usr/libexec/polkit-gnome-authentication-agent-1 \
-    /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
-    /usr/libexec/polkit-mate-authentication-agent-1 \
-    /usr/libexec/xfce-polkit \
-    /usr/bin/lxpolkit; do
-    if [[ -x $candidate ]]; then
-      polkit_agent="$candidate"
-      break
-    fi
-  done
-
-  if [[ -n $polkit_agent ]]; then
-    if ! pgrep -f "$(basename "$polkit_agent")" >/dev/null 2>&1; then
-      if [[ $polkit_agent == /usr/bin/lxpolkit ]]; then
-        # lxpolkit is X11-only and may start before Xwayland is accepting
-        # connections. Give Xwayland a moment so it does not open an error dialog.
-        setsid bash -c 'sleep 2; exec /usr/bin/lxpolkit' >/dev/null 2>&1 &
-      else
-        setsid "$polkit_agent" >/dev/null 2>&1 &
-      fi
-    fi
-  fi
-
-  # On-screen display daemon
-  if command -v swayosd-server >/dev/null 2>&1; then
-    start_once swayosd-server swayosd-server
-  fi
-
-  # Idle/lock. Quattro has its own idle service.
-  pgrep -f 'swayidle' >/dev/null 2>&1 || setsid omarchy-swayidle-start >/dev/null 2>&1 &
 fi
 
 # Monitor hotplug helpers

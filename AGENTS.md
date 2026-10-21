@@ -31,7 +31,7 @@ Common prefixes include:
 
 Other current prefixes include:
 
-- `ac-`, `audio-`, `battery-`, `branch-`, `brightness-`, `channel-`, `config-`, `debug-`, `dev-`, `drive-`, `first-`, `font-`, `haptic-`, `hibernation-`, `hook-`, `mango-`, `menu-`, `migrate-`, `notification-`, `npx-`, `plymouth-`, `powerprofiles-`, `reinstall-`, `remove-`, `screensaver-`, `show-`, `snapshot-`, `state-`, `sudo-`, `swayosd-`, `system-`, `transcode-`, `tui-`, `tz-`, `upload-`, `version-`, `voxtype-`, `webapp-`, `wifi-`, `windows-`
+- `ac-`, `audio-`, `bar-`, `battery-`, `branch-`, `brightness-`, `channel-`, `config-`, `debug-`, `dev-`, `drive-`, `first-`, `font-`, `haptic-`, `hibernation-`, `hook-`, `mango-`, `menu-`, `migrate-`, `notification-`, `npx-`, `plugin-`, `plymouth-`, `powerprofiles-`, `reinstall-`, `remove-`, `screensaver-`, `shell-`, `show-`, `snapshot-`, `state-`, `sudo-`, `system-`, `transcode-`, `tui-`, `tz-`, `upload-`, `version-`, `voxtype-`, `webapp-`, `wifi-`, `windows-`
 
 # Command Metadata
 
@@ -94,7 +94,7 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 # Visual Changes
 
-When making visual changes, such as Waybar styles or desktop appearance, always take and analyze a screenshot after applying the change to verify the result. Use `omarchy capture screenshot fullscreen save` for fullscreen screenshots.
+When making visual changes, such as Quattro bar, widget, or desktop appearance, always take and analyze a screenshot after applying the change to verify the result. Use `omarchy capture screenshot fullscreen save` for fullscreen screenshots.
 
 # Refresh Pattern
 
@@ -123,9 +123,9 @@ Migrations may use raw `dnf`, `rpm`, `command -v`, or direct config edits when n
 
 Example:
 ```bash
-echo "Keep the Waybar layout module on Fedora"
+echo "Restart the Omarchy shell after a shell update"
 
-if omarchy-cmd-present waybar && ! grep -q '"custom/layout"' ~/.config/waybar/config.jsonc; then
-  notify-send "Run omarchy-refresh-waybar to pick up the Mango layout module"
+if omarchy-cmd-present omarchy-shell; then
+  omarchy restart shell
 fi
 ```

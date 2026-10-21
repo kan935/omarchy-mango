@@ -11,21 +11,13 @@
 # Compositor and desktop shell
 mangowm
 quickshell
-waybar
-walker
-elephant
-mako
-swaybg
-swayidle
 swaylock
-SwayOSD
 gammastep
 
 # Session integration
+socat
 dbus-tools
 polkit
-mate-polkit
-lxpolkit
 xdg-utils
 xdg-user-dirs
 xdg-desktop-portal

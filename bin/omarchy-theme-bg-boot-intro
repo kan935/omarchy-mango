@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# omarchy:summary=Background intro compatibility shim for Mango
+# omarchy:hidden=true
+#
+# Quattro's boot intro plays animated theme transitions through OWE and
+# Hyprland. Mango has neither, so accept the flags and let the static
+# background cover do the work.
+
+case "${1:-}" in
+  --resolve-only | --resolve-startup | --prepare-theme) ;;
+  --theme-switch) ;;
+  -h | --help)
+    echo "Usage: omarchy-theme-bg-boot-intro [--resolve-only [background]|--resolve-startup|--prepare-theme theme|--theme-switch background theme-id [prepared]]"
+    ;;
+esac
+
+exit 0

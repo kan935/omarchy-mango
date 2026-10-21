@@ -11,12 +11,7 @@ show_osd() {
     return
   fi
 
-  local icon="$1"
-  if [[ $icon == volume-* ]]; then
-    icon="audio-volume-${icon#volume-}-symbolic"
-  fi
-
-  omarchy-swayosd-client --custom-message "$2" --custom-icon "$icon"
+  notify-send -u low "$2"
 }
 
 if (( sinks_count == 0 )); then

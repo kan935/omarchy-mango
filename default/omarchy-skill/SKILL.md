@@ -2,10 +2,10 @@
 name: omarchy
 description: >
   REQUIRED for end-user customization of Linux desktop, window manager, or system config.
-  Use when editing ~/.config/mango/, ~/.config/waybar/, ~/.config/walker/,
-  ~/.config/alacritty/, ~/.config/foot/, ~/.config/kitty/, ~/.config/ghostty/, ~/.config/mako/,
-  or ~/.config/omarchy/. Triggers: Mango, MangoWC, window rules, animations, keybindings,
-  monitors, gaps, borders, blur, opacity, waybar, walker, terminal config, themes,
+  Use when editing ~/.config/mango/, ~/.config/omarchy/,
+  ~/.config/alacritty/, ~/.config/foot/, ~/.config/kitty/, or ~/.config/ghostty/.
+  Triggers: Mango, MangoWC, Quattro shell, bar widgets, plugins, window rules,
+  animations, keybindings, monitors, gaps, borders, opacity, terminal config, themes,
   wallpaper, night light, idle, lock screen, screenshots, reminders, layer rules,
   workspace/tag settings, display config, and user-facing omarchy commands. Excludes Omarchy
   source development in ~/.local/share/omarchy/ and `omarchy dev` workflows.
@@ -23,9 +23,8 @@ It is not for contributing to Omarchy source code.
 **ALWAYS invoke this skill for end-user requests involving ANY of these:**
 
 - Editing ANY file in `~/.config/mango/` (window rules, animations, keybindings, monitors, etc.)
-- Editing ANY file in `~/.config/waybar/`, `~/.config/walker/`, `~/.config/mako/`
 - Editing terminal configs (alacritty, foot, kitty, ghostty)
-- Editing ANY file in `~/.config/omarchy/`
+- Editing ANY file in `~/.config/omarchy/`, including `shell.json`
 - Window behavior, animations, opacity, blur, gaps, borders
 - Layer rules, workspace settings, display/monitor configuration
 - Themes, wallpapers, fonts, appearance changes
@@ -57,7 +56,7 @@ This directory contains Omarchy's source files managed by git. Any changes will 
 
 **Reading `~/.local/share/omarchy/` is SAFE and useful** - do it freely to:
 - Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
-- See default configs before customizing: `cat ~/.local/share/omarchy/config/waybar/config.jsonc`
+- See default configs before customizing: `cat ~/.local/share/omarchy/config/omarchy/shell.json`
 - Check stock theme files to copy for customization
 - Reference default Mango settings: `cat ~/.local/share/omarchy/default/mango/*`
 
@@ -76,11 +75,8 @@ Omarchy is built on:
 |-----------|---------|-----------------|
 | **Fedora 44** | Base OS | `/etc/`, `~/.config/` |
 | **MangoWC** | Wayland compositor/WM | `~/.config/mango/` |
-| **Waybar** | Status bar | `~/.config/waybar/` |
-| **Walker** | App launcher | `~/.config/walker/` |
+| **Quattro shell** | Bar, menus, notifications, OSD, lock | `~/.config/omarchy/shell.json` |
 | **Alacritty/Foot/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
-| **Mako** | Notifications | `~/.config/mako/` |
-| **SwayOSD** | On-screen display | `~/.config/swayosd/` |
 
 ## Command Discovery
 
@@ -111,16 +107,17 @@ Run `omarchy --help` for the full list. The most common groups:
 
 | Group | Purpose | Example |
 |-------|---------|---------|
-| `omarchy refresh` | Reset config to defaults (backs up first) | `omarchy refresh waybar` |
-| `omarchy restart` | Restart a service/app | `omarchy restart waybar` |
+| `omarchy refresh` | Reset config to defaults (backs up first) | `omarchy refresh shell` |
+| `omarchy restart` | Restart a service/app | `omarchy restart shell` |
 | `omarchy toggle` | Toggle feature on/off | `omarchy toggle nightlight` |
 | `omarchy theme` | Theme management | `omarchy theme set <name>` |
+| `omarchy bar` | Bar layout and widgets | `omarchy bar position top` |
 | `omarchy install` | Install optional software / packages | `omarchy install docker dbs` |
 | `omarchy launch` | Launch apps | `omarchy launch browser` |
 | `omarchy capture` | Screenshots and recordings | `omarchy capture screenshot` |
 | `omarchy reminder` | Desktop notification reminders | `omarchy reminder 15 "Pickup Jack"` |
-| `omarchy pkg` | Package management | `omarchy pkg install <pkg>` |
-| `omarchy setup` | Initial setup tasks | `omarchy setup fingerprint` |
+| `omarchy pkg` | Package management | `omarchy pkg add <pkg>` |
+| `omarchy setup` | Initial setup tasks | `omarchy setup security fingerprint` |
 | `omarchy update` | System updates | `omarchy update` |
 
 ## Configuration Locations
@@ -138,8 +135,8 @@ Run `omarchy --help` for the full list. The most common groups:
 └── ~/.local/state/omarchy/toggles/mango/*.conf  # Persistent toggle snippets
 ```
 
-Idle and lock are handled by `swayidle` and `swaylock`; night light uses
-`gammastep`. Their state lives outside `~/.config/mango/`.
+Idle and lock are handled by the Quattro shell; night light uses `gammastep`.
+Their state lives outside `~/.config/mango/`.
 
 **Key behaviors:**
 - Mango does NOT watch config files. Run `omarchy restart mango`
@@ -149,17 +146,23 @@ Idle and lock are handled by `swayidle` and `swaylock`; night light uses
 - Use `mmsg get all-monitors` / `mmsg get all-clients` for state, not `hyprctl`.
   A `hyprctl` compatibility shim exists for older scripts.
 
-### Waybar (Status Bar)
+### Quattro Shell (Bar, Panels, OSD)
 
 ```
-~/.config/waybar/
-├── config.jsonc       # Bar layout and modules (JSONC format)
-└── style.css          # Styling
+~/.config/omarchy/
+└── shell.json         # Bar layout, plugin settings, and shell options
 ```
 
-**Waybar does NOT auto-reload.** You MUST run `omarchy restart waybar` after any config changes.
+The shell source and built-in plugins live in
+`~/.local/share/omarchy/shell/` and are read-only for end-user customization.
+Custom plugins live in `~/.config/omarchy/plugins/`.
 
-**Commands:** `omarchy restart waybar`, `omarchy refresh waybar`, `omarchy toggle waybar`
+**The shell runs with `QS_DISABLE_FILE_WATCHER=1` in this fork**, so run
+`omarchy restart shell` after changing `shell.json`, plugin files, or shell
+QML. Validate a shell change before restarting.
+
+**Commands:** `omarchy restart shell`, `omarchy refresh shell`,
+`omarchy bar position top`, `omarchy bar transparent toggle`
 
 ### Terminals
 
@@ -181,7 +184,6 @@ Idle and lock are handled by `swayidle` and `swaylock`; night light uses
 | lazygit | `~/.config/lazygit/config.yml` |
 | starship | `~/.config/starship.toml` |
 | git | `~/.config/git/config` |
-| walker | `~/.config/walker/config.toml` |
 
 ## Safe Customization Patterns
 
@@ -200,8 +202,7 @@ cp ~/.config/mango/bindings.conf ~/.config/mango/bindings.conf.bak.$(date +%s)
 
 # 4. Apply changes
 # - Mango: validate with `mango -c ~/.config/mango/config.conf -p`, then `omarchy restart mango`
-# - Waybar: MUST restart with `omarchy restart waybar`
-# - Walker: MUST restart with `omarchy restart walker`
+# - Quattro shell: MUST restart with `omarchy restart shell`
 # - Terminals: MUST restart with `omarchy restart terminal`
 ```
 
@@ -238,7 +239,7 @@ When customizations go wrong:
 
 ```bash
 # Reset specific config (creates backup automatically)
-omarchy refresh waybar
+omarchy refresh shell
 omarchy refresh mango
 
 # The refresh command:
@@ -261,7 +262,8 @@ omarchy theme install <url>     # Install from git repo
 
 ### Keybindings
 
-Edit `~/.config/mango/bindings.conf`. Format:
+Edit `~/.config/mango/bindings.conf`. It is the only bindings file sourced
+by this fork and starts as a full copy of the default. Format:
 ```
 bind=SUPER,Return,spawn,xdg-terminal-exec
 bind=SUPER,w,killclient
@@ -395,4 +397,4 @@ This skill intentionally does not cover Omarchy source development. Do not use t
 - "Clear all reminders" -> `omarchy reminder clear`
 - "Customize the catppuccin theme colors" -> Create `~/.config/omarchy/themes/catppuccin-custom/` by copying from stock, then edit
 - "Run a script every time I change themes" -> Create `~/.config/omarchy/hooks/theme-set`
-- "Reset waybar to defaults" -> `omarchy refresh waybar`
+- "Reset the shell bar to defaults" -> `omarchy refresh shell`

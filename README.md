@@ -3,15 +3,14 @@
 This is a fork of [Omarchy](https://github.com/basecamp/omarchy) for **Fedora 44**
 and **[MangoWC](https://github.com/mangowm/mango)**. It keeps Omarchy's themes,
 menus, CLI, keybinding conventions, screenshots, recording, idle/lock, and
-desktop helpers, while combining them with the real Omarchy 4 "Quattro"
-Quickshell desktop from upstream `v4.0.6`.
+desktop helpers, while combining them with the Omarchy 4 "Quattro" Quickshell
+desktop from the upstream `quattro` channel.
 
-Quattro is the primary shell: bar, tags, menus, notifications, OSD, wallpaper,
-theme and background pickers, idle/lock screen, and the polkit agent. The
-Hyprland-specific Quattro integrations are patched to Mango's `mmsg` IPC and
-`wlr-randr`. The older Omarchy 3 desktop (Waybar, Walker, Mako, swaybg,
-swayidle, SwayOSD, and swaylock) remains as an automatic fallback when
-Quickshell or the bundled `shell/shell.qml` is unavailable.
+Quattro is the only desktop shell: bar, tags, menus, notifications, OSD,
+wallpaper, theme and background pickers, idle/lock screen, and the polkit
+agent. The Hyprland-specific Quattro integrations are patched to Mango's
+`mmsg` IPC and `wlr-randr`. The Omarchy 3 stack (Waybar, Walker, Mako, swaybg,
+swayidle, and SwayOSD) is not installed or started.
 
 ## Requirements
 
@@ -21,9 +20,8 @@ Quickshell or the bundled `shell/shell.qml` is unavailable.
   [`errornointernet/quickshell`](https://copr.fedorainfracloud.org/coprs/errornointernet/quickshell/)
 - A Wayland session manager or display manager (GDM, SDDM, greetd, or a TTY)
 
-The legacy fallback additionally uses Waybar 0.15 or newer (Fedora 44 ships 0.15
-with `ext/workspaces`). The installer installs both desktops so a missing
-Quickshell can never leave the session without a bar.
+Quattro is required for the desktop bar and panels. Mango will start without
+it, but there is no secondary Waybar/Walker session.
 
 Mango is not in Fedora's main repositories. With Terra enabled:
 
@@ -55,7 +53,7 @@ The installer:
   `~/.config/omarchy-install-backup-<timestamp>`
 - installs `/usr/local/share/wayland-sessions/omarchy-mango.desktop`
 - prepares the `tokyo-night` theme, background symlink, Quattro `shell.json`,
-  legacy Mako config, and btop theme
+  and btop theme
 - writes the PAM service used by the Quattro lock screen
 - marks the Arch-era migrations as already applied
 - validates the generated Mango configuration
@@ -71,9 +69,8 @@ The installer does not start Mango or restart your current desktop session.
 
 ## Log in
 
-Log out, then choose **Omarchy (Mango)** in your display manager. The session
-starts Quattro automatically. If Quickshell is missing, it starts the legacy
-Waybar/Walker desktop instead.
+Log out, then choose **Omarchy (Mango)** in your display manager. Mango starts
+and launches Quattro automatically. There is no secondary bar session.
 
 From a TTY, start the session directly:
 
@@ -82,9 +79,8 @@ exec ~/.local/share/omarchy/bin/omarchy-mango-session
 ```
 
 Quattro's startup is managed by
-`~/.local/share/omarchy/bin/omarchy-mango-session-start`; the legacy daemons are
-only started when the Quattro shell is unavailable. The shell's log is written
-to `$XDG_RUNTIME_DIR/omarchy/shell.log`.
+`~/.local/share/omarchy/bin/omarchy-mango-session-start`. The shell's log is
+written to `$XDG_RUNTIME_DIR/omarchy/shell.log`.
 
 Mango reads `~/.config/mango/config.conf`. The repository's entry point layers
 Omarchy defaults, the generated theme, user overrides, and persistent toggle
@@ -92,7 +88,7 @@ snippets in this order:
 
 ```text
 ~/.config/mango/config.conf
-├── ~/.local/share/omarchy/default/mango/{envs,looknfeel,input,windows,bindings,autostart}.conf
+├── ~/.local/share/omarchy/default/mango/{envs,looknfeel,input,windows,autostart}.conf
 ├── ~/.config/omarchy/current/theme/mango.conf
 ├── ~/.config/mango/{monitors,input,bindings,looknfeel,autostart}.conf
 └── ~/.local/state/omarchy/toggles/mango/*.conf
@@ -147,8 +143,9 @@ Mango uses the same `Super`-based layout as Omarchy. The main bindings:
 | `Super + Ctrl + Alt + Delete` | Mirror internal display (unsupported, explains why) |
 
 `omarchy-menu-keybindings` prints every binding parsed from the Mango config.
-Mango has no `unbind`; redefine a modifier + key later in
-`~/.config/mango/bindings.conf` to override it.
+Only `~/.config/mango/bindings.conf` is sourced; it begins as a full copy of
+`default/mango/bindings.conf`, so edit that user file directly. Mango has no
+`unbind`; redefine a modifier + key later in the same file to override it.
 
 ## What changed from upstream Omarchy
 
@@ -160,8 +157,8 @@ Mango has no `unbind`; redefine a modifier + key later in
 | `hyprctl` scripts | `bin/hyprctl` compatibility shim backed by Mango IPC |
 | Hyprland workspaces | Native Mango tags 1-10 in the Quattro bar |
 | Hyprland monitor focus | Cursor-monitor probe using `mmsg get cursorpos` |
-| `hyprlock` | PAM-backed Quattro lock screen; `swaylock` in legacy mode |
-| `hypridle` | Quattro idle service; `swayidle` in legacy mode |
+| `hyprlock` | PAM-backed Quattro lock screen; `swaylock` only if shell IPC is unavailable |
+| `hypridle` | Quattro idle service |
 | `hyprsunset` | `gammastep` |
 | `hyprpicker` | `slurp` + `grim` + ImageMagick |
 | `hyprshot` | `grim` + `slurp` + `satty` |
@@ -170,16 +167,15 @@ Mango has no `unbind`; redefine a modifier + key later in
 | Arch migrations | pre-marked as applied; Fedora installer is authoritative |
 
 Mango does not support Hyprland's named workspaces, but its native 10 tags map
-directly to Omarchy's workspace keys and the Quattro bar. The Waybar
-`ext/workspaces` module remains available in legacy fallback mode.
+directly to Omarchy's workspace keys and the Quattro bar.
 
 ## Fedora notes
 
 - Quickshell is not in Fedora's main repositories. The installer enables the
   `errornointernet/quickshell` COPR. To enable it manually:
   `sudo dnf copr enable -y errornointernet/quickshell`
-- Polkit uses Quattro's built-in agent. The legacy session uses `mate-polkit`,
-  with `lxpolkit` as a fallback, because `polkit-gnome` is not packaged.
+- Polkit uses Quattro's built-in agent. No separate polkit agent package is
+  installed, so it cannot race the shell on login.
 - `python3-terminaltexteffects` is unavailable; the screensaver falls back to a
   built-in Python animation.
 - `uwsm`, `xdg-terminal-exec`, `hypridle`, `hyprlock`, `hyprsunset`, `hyprpicker`,
@@ -238,9 +234,7 @@ omarchy restart mango    # mmsg dispatch reload_config
 ```
 
 `omarchy-theme-set "Tokyo Night"` or the Quattro theme picker regenerates
-`mango.conf`, Quattro shell colors, `swaylock.conf`, legacy Waybar/Walker
-colours, and the rest of the themed files. `omarchy-toggle-waybar` only affects
-legacy fallback mode.
+`mango.conf`, Quattro shell colors, and the rest of the themed files.
 
 ## Troubleshooting
 
@@ -250,14 +244,14 @@ legacy fallback mode.
 mango -c ~/.config/mango/config.conf -p
 ```
 
-**Quattro does not start / the legacy bar appears instead**
+**Quattro does not start**
 
 Check that Quickshell and the bundled shell are present:
 
 ```bash
 rpm -q quickshell
 test -f ~/.local/share/omarchy/shell/shell.qml && echo shell-present
-quickshell -n -p ~/.local/share/omarchy/shell
+omarchy restart shell
 ```
 
 If Quickshell is missing:
@@ -267,31 +261,20 @@ sudo dnf copr enable -y errornointernet/quickshell
 sudo dnf install quickshell
 ```
 
-Startup errors are appended to `$XDG_RUNTIME_DIR/omarchy/shell.log`. The
-session deliberately falls back to Waybar/Walker when either requirement is
-missing.
+Startup errors are appended to `$XDG_RUNTIME_DIR/omarchy/shell.log`. There is
+no fallback bar; install Quickshell and restart the session.
 
-**Legacy fallback: Waybar starts but tags are missing**
+**Bar icons or glyphs are missing**
 
-Waybar must be 0.15 or newer and Mango must expose `ext-workspace-v1` (0.18.2
-does). Check:
+Install the Nerd Font and Font Awesome icon fonts:
 
 ```bash
-waybar -v
-mmsg get all-tags
-```
-
-**Legacy fallback: Waybar shows no icons**
-
-Install the Nerd Font and Omarchy glyph font:
-
-```bash
-sudo dnf install jetbrainsmono-nerd-fonts
-cp ~/.local/share/omarchy/config/omarchy.ttf ~/.local/share/fonts/
+sudo dnf install jetbrainsmono-nerd-fonts fontawesome-fonts-all
 fc-cache -f
+omarchy restart shell
 ```
 
-**A legacy Hyprland script fails**
+**A Hyprland compatibility script fails**
 
 Try the shim directly:
 

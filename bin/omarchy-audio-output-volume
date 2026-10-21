@@ -86,17 +86,5 @@ fi
 if omarchy-shell shell ping >/dev/null 2>&1; then
   omarchy-osd -i "$icon" -p "${percent:-0}"
 else
-  progress="$(awk -v p="${percent:-0}" 'BEGIN { printf "%.2f", p / 100 }')"
-  [[ $progress == "0.00" ]] && progress="0.01"
-
-  if [[ $icon == "volume-muted" ]]; then
-    swayosd_icon="audio-volume-muted-symbolic"
-  else
-    swayosd_icon="audio-volume-high-symbolic"
-  fi
-
-  omarchy-swayosd-client \
-    --custom-icon "$swayosd_icon" \
-    --custom-progress "$progress" \
-    --custom-progress-text "${percent:-0}%"
+  notify-send -u low -h int:value:"${percent:-0}" "Volume ${percent:-0}%"
 fi

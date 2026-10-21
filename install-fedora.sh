@@ -168,19 +168,6 @@ copy_user_config() {
   backup_conflicts
   cp -a "$SOURCE_DIR/config/." "$CONFIG_DIR/"
 
-  # Keep Walker available for the automatic legacy fallback. The Quattro
-  # session stops the service and closes Walker during startup.
-  mkdir -p "$CONFIG_DIR/autostart" "$CONFIG_DIR/systemd/user/app-walker@autostart.service.d"
-  cp "$SOURCE_DIR/default/walker/walker.desktop" "$CONFIG_DIR/autostart/walker.desktop"
-  cp "$SOURCE_DIR/default/walker/restart.conf" \
-    "$CONFIG_DIR/systemd/user/app-walker@autostart.service.d/restart.conf"
-
-  mkdir -p "$CONFIG_DIR/elephant/menus"
-  local menu=""
-  for menu in omarchy_themes omarchy_background_selector omarchy_unlocks; do
-    ln -snf "$OMARCHY_PATH/default/elephant/$menu.lua" "$CONFIG_DIR/elephant/menus/$menu.lua"
-  done
-
   if [[ ! -f $HOME/.XCompose ]]; then
     cat >"$HOME/.XCompose" <<'EOF'
 include "%H/.local/share/omarchy/default/xcompose"
@@ -237,9 +224,8 @@ prepare_theme() {
     ln -nsf "$background" "$current/background"
   fi
 
-  mkdir -p "$CONFIG_DIR/btop/themes" "$CONFIG_DIR/mako"
+  mkdir -p "$CONFIG_DIR/btop/themes"
   ln -snf "$current/theme/btop.theme" "$CONFIG_DIR/btop/themes/current.theme"
-  ln -snf "$current/theme/mako.ini" "$CONFIG_DIR/mako/config"
 
   PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-gnome" ||
     warn "Could not apply the GTK theme"
@@ -266,7 +252,7 @@ verify_install() {
   local failed=false
   local command=""
 
-  for command in mango mmsg quickshell qs waybar walker elephant swaylock swayidle grim slurp wf-recorder; do
+  for command in mango mmsg quickshell qs swaylock grim slurp wf-recorder; do
     if ! command -v "$command" >/dev/null 2>&1; then
       warn "Required command not found: $command"
       failed=true

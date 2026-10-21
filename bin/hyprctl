@@ -427,6 +427,10 @@ dispatch)
     ;;
   esac
   ;;
+eval)
+  # Hyprland's Lua evaluator has no Mango equivalent. Startup cursor restore
+  # is already handled by Mango, so accept and ignore the call.
+  ;;
 keyword)
   assignment="${1:-}"
   key="${assignment%% *}"

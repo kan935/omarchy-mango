@@ -1,33 +1,18 @@
 #!/bin/bash
 
-# omarchy:summary=Act on Quattro notifications (or Mako in fallback mode)
+# omarchy:summary=Act on Quattro notifications
 # omarchy:args=<dismiss|dismiss-all|invoke|history|toggle-dnd>
 
 set -u
 
 action="${1:-}"
 
-shell_action() {
-  case "$action" in
-    dismiss) omarchy-shell notifications dismissOne ;;
-    dismiss-all) omarchy-shell notifications dismissAll ;;
-    invoke) omarchy-shell notifications invokeLast ;;
-    history) omarchy-shell notifications showHistory ;;
-    toggle-dnd) omarchy-shell notifications toggleDnd ;;
-    *) return 1 ;;
-  esac
-}
-
-if [[ -n $action ]] && shell_action >/dev/null 2>&1; then
-  exit 0
-fi
-
 case "$action" in
-  dismiss) makoctl dismiss ;;
-  dismiss-all) makoctl dismiss --all ;;
-  invoke) makoctl invoke ;;
-  history) makoctl restore ;;
-  toggle-dnd) omarchy-toggle-notification-silencing ;;
+  dismiss) omarchy-shell notifications dismissOne ;;
+  dismiss-all) omarchy-shell notifications dismissAll ;;
+  invoke) omarchy-shell notifications invokeLast ;;
+  history) omarchy-shell notifications showHistory ;;
+  toggle-dnd) omarchy-shell notifications toggleDnd ;;
   *)
     echo "Usage: omarchy-notification-action <dismiss|dismiss-all|invoke|history|toggle-dnd>" >&2
     exit 1

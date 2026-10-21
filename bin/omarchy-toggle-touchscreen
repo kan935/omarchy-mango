@@ -19,22 +19,14 @@ reload() {
 enable() {
   rm -f "$STATE_CONF"
   reload
-  if omarchy-shell shell ping >/dev/null 2>&1; then
-    omarchy-osd -i touch -m "Touchscreen enabled"
-  else
-    omarchy-swayosd-client --custom-icon device-support-touch-symbolic --custom-message "Touchscreen enabled"
-  fi
+  omarchy-osd -i touch -m "Touchscreen enabled"
 }
 
 disable() {
   mkdir -p "$(dirname "$STATE_CONF")"
   printf 'device_rule=name:%s,send_events_mode:1\n' "$device" >"$STATE_CONF"
   reload
-  if omarchy-shell shell ping >/dev/null 2>&1; then
-    omarchy-osd -i touch -m "Touchscreen disabled"
-  else
-    omarchy-swayosd-client --custom-icon touch-disabled-symbolic --custom-message "Touchscreen disabled"
-  fi
+  omarchy-osd -i touch -m "Touchscreen disabled"
 }
 
 case "${1:-toggle}" in

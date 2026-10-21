@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# omarchy:summary=Link LazyVim's theme spec to the current Omarchy theme
+# omarchy:hidden=true
+
+THEME_FILE="$HOME/.config/omarchy/current/theme/neovim.lua"
+NVIM_CONFIG="$HOME/.config/nvim"
+THEME_LINK="$NVIM_CONFIG/lua/plugins/theme.lua"
+
+# Only touch an existing Neovim configuration; Omarchy does not create one.
+[[ -d $NVIM_CONFIG && -f $THEME_FILE ]] || exit 0
+
+mkdir -p "$NVIM_CONFIG/lua/plugins"
+
+# Keep a hand-written spec before replacing it with the theme-owned symlink.
+if [[ -f $THEME_LINK && ! -L $THEME_LINK ]]; then
+  cp -a "$THEME_LINK" "$THEME_LINK.before-omarchy"
+fi
+
+ln -snf "$THEME_FILE" "$THEME_LINK"

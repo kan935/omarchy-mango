@@ -245,6 +245,8 @@ prepare_theme() {
     warn "Could not apply the GTK theme"
   PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-qt" ||
     warn "Could not apply the Qt theme"
+  PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-neovim" ||
+    warn "Could not apply the Neovim theme"
   PATH="$OMARCHY_PATH/bin:$PATH" OMARCHY_PATH="$OMARCHY_PATH" "$OMARCHY_PATH/bin/omarchy-theme-set-browser" ||
     warn "Could not apply the browser theme"
 }

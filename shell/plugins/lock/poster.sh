@@ -15,7 +15,12 @@ flock -w 10 "$lock_fd"
 if [[ ! -s $poster ]]; then
   temporary=$(mktemp "$cache_dir/.poster-XXXXXX.jpg")
   trap 'rm -f "$temporary"' EXIT
-  timeout -k 1 5 ffmpegthumbnailer -i "$source_path" -o "$temporary" -s 1920 -q 8 {lock_fd}>&-
+  if command -v ffmpegthumbnailer >/dev/null 2>&1; then
+    timeout -k 1 5 ffmpegthumbnailer -i "$source_path" -o "$temporary" -s 1920 -q 8 {lock_fd}>&-
+  else
+    timeout -k 1 5 ffmpeg -nostdin -v error -ss 1 -i "$source_path" -frames:v 1 \
+      -vf 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080' -q:v 3 -y "$temporary" {lock_fd}>&-
+  fi
   [[ -s $temporary ]]
   mv -f "$temporary" "$poster"
   find "$cache_dir" -maxdepth 1 -type f -name 'poster-*.jpg' ! -name "poster-$key.jpg" -delete

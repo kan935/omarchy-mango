@@ -18,7 +18,8 @@ swayidle, and SwayOSD) is not installed or started.
 - MangoWC 0.18.2 or newer (`mangowm` from the [Terra repository](https://terra.fyralabs.com/))
 - Quickshell 0.3.2, installed from the Fedora COPR
   [`errornointernet/quickshell`](https://copr.fedorainfracloud.org/coprs/errornointernet/quickshell/)
-- A Wayland session manager or display manager (GDM, SDDM, greetd, or a TTY)
+- A Wayland session manager or display manager (Ly is installed and configured
+  by default; GDM, SDDM, greetd, or a TTY also work)
 
 Quattro is required for the desktop bar and panels. Mango will start without
 it, but there is no secondary Waybar/Walker session.
@@ -56,7 +57,11 @@ The installer:
 - copies the fork to `~/.local/share/omarchy`, including the Quattro `shell/`
 - copies `config/*` to `~/.config`, backing up replaced files to
   `~/.config/omarchy-install-backup-<timestamp>`
+- installs `~/.bashrc.d/omarchy.sh` with the Omarchy bash setup (starship
+  prompt, zoxide, fzf, eza and aliases)
 - installs `/usr/local/share/wayland-sessions/omarchy-mango.desktop`
+- configures Ly (`/etc/ly/config.ini` and a theme-aware `/etc/ly/startup.sh`)
+  and enables it on tty1
 - prepares the `tokyo-night` theme, background symlink, Quattro `shell.json`,
   and btop theme
 - writes the PAM service used by the Quattro lock screen
@@ -74,8 +79,12 @@ The installer does not start Mango or restart your current desktop session.
 
 ## Log in
 
-Log out, then choose **Omarchy (Mango)** in your display manager. Mango starts
-and launches Quattro automatically. There is no secondary bar session.
+Log out, then choose **Omarchy (Mango)** in Ly or your display manager. Mango
+starts and launches Quattro automatically. There is no secondary bar session.
+
+The installer enables `ly@tty1.service` and disables `getty@tty1.service`. To
+keep another display manager instead, run
+`sudo systemctl disable ly@tty1.service` before rebooting.
 
 From a TTY, start the session directly:
 
@@ -112,16 +121,19 @@ Mango uses the same `Super`-based layout as Omarchy. The main bindings:
 | Binding | Action |
 | --- | --- |
 | `Super + Return` | Terminal (Foot via `xdg-terminal-exec`) |
-| `Super + Shift + Return` | Browser |
+| `Super + B` | Browser |
+| `Super + Shift + B` | Private browser |
+| `Super + E` | File manager (Nemo) |
+| `Super + Shift + A` | Coding agent picker |
 | `Super + Space` | Omarchy menu (Quattro) |
-| `Super + Alt + Space` | Omarchy menu (Quattro) |
+| `Super + Alt + Space` | Omarchy apps menu |
 | `Super + Ctrl + V` | Clipboard history |
 | `Super + Ctrl + E` | Emoji picker |
 | `Super + Ctrl + C` | Capture menu |
 | `Super + Ctrl + Space` | Background picker |
 | `Super + Shift + Ctrl + Space` | Theme picker |
-| `Super + W` | Close window |
-| `Super + T` | Toggle floating |
+| `Super + Q` | Close window |
+| `Super + Z` | Toggle floating |
 | `Super + F` | Toggle fullscreen |
 | `Super + J` | Toggle dwindle split direction |
 | `Super + L` | Toggle Dwindle/Scroller layout |
@@ -139,8 +151,8 @@ Mango uses the same `Super`-based layout as Omarchy. The main bindings:
 | `Super + Alt + S` | Move window to scratchpad |
 | `Super + Ctrl + L` | Lock |
 | `Super + Print` | Colour picker |
-| `Print` | Screenshot |
-| `Alt + Print` | Screen recording menu |
+| `Super + P` | Screenshot |
+| `Alt + P` | Screen recording menu |
 | `Super + Ctrl + Print` | Extract text from screen |
 | `Super + Ctrl + I` | Toggle idle locking |
 | `Super + Ctrl + N` | Toggle nightlight |
@@ -148,9 +160,10 @@ Mango uses the same `Super`-based layout as Omarchy. The main bindings:
 | `Super + Ctrl + Alt + Delete` | Mirror internal display (unsupported, explains why) |
 
 `omarchy-menu-keybindings` prints every binding parsed from the Mango config.
-Only `~/.config/mango/bindings.conf` is sourced; it begins as a full copy of
-`default/mango/bindings.conf`, so edit that user file directly. Mango has no
-`unbind`; redefine a modifier + key later in the same file to override it.
+Only `~/.config/mango/bindings.conf` is sourced; the installer copies a full
+binding set there (based on `default/mango/bindings.conf`), so edit that user
+file directly. Mango has no `unbind`; redefine a modifier + key later in the
+same file to override it.
 
 ## What changed from upstream Omarchy
 
@@ -218,6 +231,8 @@ These are Mango or Mango-port limitations, not missing keybindings:
   `~/.config/omarchy/shell.json`
 - Key bindings: `~/.config/mango/bindings.conf`
 - Input and trackpad: `~/.config/mango/input.conf`
+- Shell setup: `~/.bashrc.d/omarchy.sh` (sourced by Fedora's `~/.bashrc`)
+- Starship prompt: `~/.config/starship.toml`
 - Gaps, borders, blur, animations: `~/.config/mango/looknfeel.conf`
 - Monitor rules: `~/.config/mango/monitors.conf`
 - Extra autostart: `~/.config/mango/autostart.conf`

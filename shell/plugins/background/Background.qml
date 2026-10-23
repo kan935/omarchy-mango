@@ -354,7 +354,7 @@ Item {
       // Keep render updates enabled. The background layer has been observed to
       // lose its committed buffer while parked with updatesEnabled=false,
       // leaving a black desktop until omarchy-shell is restarted. A still
-      // wallpaper costs nothing to keep enabled. OWE manages video layers.
+      // wallpaper costs nothing to keep enabled, and motion wallpapers need it.
       updatesEnabled: true
 
       property bool maskReady: false
@@ -402,8 +402,7 @@ Item {
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
 
-      // OWE owns video backgrounds. This layer draws stills, and stays empty
-      // behind a video so OWE's own layer shows through.
+      // BackgroundMedia draws stills and plays motion wallpapers in this layer.
       BackgroundMedia {
         id: base
         anchors.fill: parent

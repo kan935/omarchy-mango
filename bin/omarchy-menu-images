@@ -77,6 +77,10 @@ if (( ${#image_dirs[@]} == 0 )); then
   exit 1
 fi
 
+is_video_path() {
+  [[ ${1,,} =~ \.(mp4|m4v|mov|webm|mkv|avi)$ ]]
+}
+
 selection_file=$(mktemp)
 done_file=$(mktemp)
 pending_file=$(mktemp)
@@ -116,8 +120,8 @@ cache_key=$(printf '%s' "$image_dirs_env" | md5sum | cut -d ' ' -f 1)
 rows_cache_file="$cache_dir/$cache_key.rows"
 rows_signature_file="$cache_dir/$cache_key.signature"
 rows_fast_signature_file="$cache_dir/$cache_key.fast-signature"
-rows_signature="v3"$'\n'
-rows_fast_signature="v2"$'\n'
+rows_signature="v4"$'\n'
+rows_fast_signature="v3"$'\n'
 rows_cacheable=true
 rows_cache_hit=false
 image_files=()
@@ -138,7 +142,10 @@ else
         image_files+=("$image")
         image_signature=$(stat -Lc '%s:%Y' "$image") || continue
         rows_signature+="$image:$image_signature"$'\n'
-      done < <(find -L "$dir" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' \) -print0 2>/dev/null | sort -z)
+      done < <(find -L "$dir" -maxdepth 1 -type f \
+        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' \
+           -o -iname '*.mp4' -o -iname '*.m4v' -o -iname '*.mov' -o -iname '*.webm' -o -iname '*.mkv' -o -iname '*.avi' \) \
+        -print0 2>/dev/null | sort -z)
     fi
   done
 fi
@@ -165,6 +172,17 @@ generate_thumbnail() {
   rm -f "$thumbnail".*.jpg
 
   [[ -f $thumbnail ]] && return
+
+  if is_video_path "$image"; then
+    if command -v ffmpegthumbnailer >/dev/null 2>&1; then
+      timeout -k 5 10 ffmpegthumbnailer -i "$image" -o "$tmp" -s 1536 -q 8 {lock_fd}>&- && mv -f "$tmp" "$thumbnail"
+    elif command -v ffmpeg >/dev/null 2>&1; then
+      timeout -k 5 10 ffmpeg -nostdin -v error -ss 1 -i "$image" -frames:v 1 \
+        -vf 'scale=1536:864:force_original_aspect_ratio=increase,crop=1536:864' -q:v 3 -y "$tmp" {lock_fd}>&- && mv -f "$tmp" "$thumbnail"
+    fi
+    [[ -f $thumbnail ]] || rm -f "$tmp" "$thumbnail"
+    return 0
+  fi
 
   # Callers fan out one generator per image, so keep each vips single-threaded.
   # Close the lock fd for vips: an orphaned or hung vips must not keep holding
@@ -222,7 +240,7 @@ thumbnail_for() {
 drain_pending_thumbnails() {
   [[ -s $pending_file ]] || return 0
 
-  export -f generate_thumbnail
+  export -f generate_thumbnail is_video_path
   xargs -a "$pending_file" -0 -n 2 -P "$(nproc)" \
     bash -c 'generate_thumbnail "$1" "$2"' _ >/dev/null 2>&1 || true
 }

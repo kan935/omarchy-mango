@@ -8,7 +8,12 @@ THEME_BACKGROUNDS_PATH="$HOME/.config/omarchy/current/theme/backgrounds/"
 USER_BACKGROUNDS_PATH="$HOME/.config/omarchy/backgrounds/$THEME_NAME/"
 CURRENT_BACKGROUND_LINK="$HOME/.config/omarchy/current/background"
 
-mapfile -d '' -t BACKGROUNDS < <(find -L "$USER_BACKGROUNDS_PATH" "$THEME_BACKGROUNDS_PATH" -maxdepth 1 -type f -print0 2>/dev/null | sort -z)
+mapfile -d '' -t BACKGROUNDS < <(
+  find -L "$USER_BACKGROUNDS_PATH" "$THEME_BACKGROUNDS_PATH" -maxdepth 1 -type f \
+    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' \
+       -o -iname '*.mp4' -o -iname '*.m4v' -o -iname '*.mov' -o -iname '*.webm' -o -iname '*.mkv' -o -iname '*.avi' \) \
+    -print0 2>/dev/null | sort -z
+)
 TOTAL=${#BACKGROUNDS[@]}
 
 if (( TOTAL == 0 )); then
@@ -33,8 +38,16 @@ else
 
   # Get next background (wrap around)
   if (( INDEX == -1 )); then
-    # Use the first background when no match was found
-    NEW_BACKGROUND="${BACKGROUNDS[0]}"
+    # A theme change starts on a still when it has one, so motion wallpapers
+    # stay an explicit choice instead of becoming every theme's default.
+    NEW_BACKGROUND=""
+    for candidate in "${BACKGROUNDS[@]}"; do
+      if [[ ! ${candidate,,} =~ \.(mp4|m4v|mov|webm|mkv|avi)$ ]]; then
+        NEW_BACKGROUND=$candidate
+        break
+      fi
+    done
+    [[ $NEW_BACKGROUND ]] || NEW_BACKGROUND="${BACKGROUNDS[0]}"
   else
     NEXT_INDEX=$(((INDEX + 1) % TOTAL))
     NEW_BACKGROUND="${BACKGROUNDS[$NEXT_INDEX]}"

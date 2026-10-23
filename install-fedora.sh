@@ -278,6 +278,38 @@ EOF
   command -v fc-cache >/dev/null 2>&1 && fc-cache -f >/dev/null 2>&1 || true
 }
 
+install_bash_shell() {
+  local target="$HOME/.bashrc.d/omarchy.sh"
+
+  log "Installing the Omarchy bash shell setup"
+  mkdir -p "$HOME/.bashrc.d"
+  if [[ -f $target ]] && ! cmp -s "$OMARCHY_PATH/default/bashrc.d/omarchy.sh" "$target"; then
+    cp -a "$target" "$target.bak-$(date +%Y%m%d-%H%M%S)"
+  fi
+  install -m644 "$OMARCHY_PATH/default/bashrc.d/omarchy.sh" "$target"
+}
+
+install_ly() {
+  log "Configuring the Ly login manager"
+
+  if ! command -v ly >/dev/null 2>&1; then
+    warn "ly is not installed; skipping login manager setup"
+    return 0
+  fi
+
+  sudo -v || die "sudo access is required to configure Ly"
+  if [[ -f /etc/ly/config.ini ]] && ! sudo cmp -s "$OMARCHY_PATH/default/ly/config.ini" /etc/ly/config.ini; then
+    sudo cp -a /etc/ly/config.ini "/etc/ly/config.ini.bak-$(date +%Y%m%d-%H%M%S)"
+  fi
+  sudo install -Dm644 "$OMARCHY_PATH/default/ly/config.ini" /etc/ly/config.ini
+  sed "s|@HOME@|$HOME|g" "$OMARCHY_PATH/default/ly/startup.sh" | sudo tee /etc/ly/startup.sh >/dev/null
+  for dm in gdm sddm lightdm; do
+    sudo systemctl disable "$dm.service" >/dev/null 2>&1 || true
+  done
+  sudo systemctl disable getty@tty1.service >/dev/null 2>&1 || true
+  sudo systemctl enable ly@tty1.service
+}
+
 install_lock_auth() {
   log "Configuring lock screen authentication"
   OMARCHY_INSTALL_USER="$USER" "$OMARCHY_PATH/bin/omarchy-apply-lock" ||
@@ -324,7 +356,11 @@ prepare_theme() {
   mv "$current/next-theme" "$current/theme"
   printf '%s\n' "$THEME" >"$current/theme.name"
 
-  background=$(find -L "$current/theme/backgrounds" -maxdepth 1 -type f 2>/dev/null | sort | head -n 1 || true)
+  # Start on a still when the theme has one, so motion wallpapers stay an
+  # explicit choice (same rule as omarchy-theme-bg-next).
+  background=$(find -L "$current/theme/backgrounds" -maxdepth 1 -type f \
+    ! -iregex '.*\.\(mp4\|m4v\|mov\|webm\|mkv\|avi\)$' 2>/dev/null | sort | head -n 1 || true)
+  [[ -n $background ]] || background=$(find -L "$current/theme/backgrounds" -maxdepth 1 -type f 2>/dev/null | sort | head -n 1 || true)
   if [[ -n $background ]]; then
     ln -nsf "$background" "$current/background"
   fi
@@ -357,7 +393,7 @@ verify_install() {
   local failed=false
   local command=""
 
-  for command in mango mmsg quickshell qs swaylock grim slurp wf-recorder; do
+  for command in mango mmsg quickshell qs swaylock grim slurp wf-recorder ly; do
     if ! command -v "$command" >/dev/null 2>&1; then
       warn "Required command not found: $command"
       failed=true
@@ -390,7 +426,9 @@ fi
 
 copy_program_files
 copy_user_config
+install_bash_shell
 install_session_file
+install_ly
 configure_browser
 prepare_theme
 install_lock_auth

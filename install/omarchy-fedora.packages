@@ -34,6 +34,8 @@ qt6-qtimageformats
 qt5ct
 qt6ct
 libxkbcommon-utils
+# Ly login manager; install-fedora.sh installs its config and enables it on tty1.
+ly
 
 # Input, audio, and hardware controls
 brightnessctl
@@ -65,6 +67,8 @@ ImageMagick
 # RPM Fusion's full ffmpeg package; install-fedora.sh swaps it in for
 # ffmpeg-free when Fedora preinstalled the free variant.
 ffmpeg
+# Poster frames for motion wallpapers in the background picker and lock screen.
+ffmpegthumbnailer
 
 # Terminals and everyday applications
 foot

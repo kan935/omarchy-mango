@@ -43,17 +43,28 @@ generate_video_thumbnail() {
 
   [[ -f $thumbnail ]] && return
 
-  if timeout -k 5 10 ffmpegthumbnailer -i "$image" -o "$tmp" -s 1536 -q 8 {lock_fd}>&-; then
-    mv -f "$tmp" "$thumbnail"
-  else
+  if command -v ffmpegthumbnailer >/dev/null 2>&1; then
+    timeout -k 5 10 ffmpegthumbnailer -i "$image" -o "$tmp" -s 1536 -q 8 {lock_fd}>&-
     status=$?
-    rm -f "$tmp" "$thumbnail"
-    # Remember a rejected video so it costs nothing on the next scan; the key
-    # covers size and mtime, so a repaired file starts clean. A timeout is
-    # left to retry: the machine may only have been busy.
-    (( status == 124 || status == 137 )) || : >"$thumbnail.failed"
-    return 1
+  elif command -v ffmpeg >/dev/null 2>&1; then
+    timeout -k 5 10 ffmpeg -nostdin -v error -ss 1 -i "$image" -frames:v 1 \
+      -vf 'scale=1536:864:force_original_aspect_ratio=increase,crop=1536:864' -q:v 3 -y "$tmp" {lock_fd}>&-
+    status=$?
+  else
+    status=127
   fi
+
+  if (( status == 0 )); then
+    mv -f "$tmp" "$thumbnail"
+    return
+  fi
+
+  rm -f "$tmp" "$thumbnail"
+  # Remember a rejected video so it costs nothing on the next scan; the key
+  # covers size and mtime, so a repaired file starts clean. A timeout is
+  # left to retry: the machine may only have been busy.
+  (( status == 124 || status == 137 )) || : >"$thumbnail.failed"
+  return 1
 }
 
 drain_pending_video_thumbnails() {

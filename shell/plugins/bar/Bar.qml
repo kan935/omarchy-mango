@@ -1574,6 +1574,18 @@ Item {
       right: root.barHidden && root.position === "right" ? -barWindow.thickness : 0
     }
 
+    // Parking keeps the layer surface mapped. Mango gives an off-screen
+    // surface no frames, so un-parking alone never flushes the shown margins
+    // and exclusive zone. Remap the guard briefly to re-seat the bar.
+    Connections {
+      target: root
+      function onBarHiddenChanged() {
+        if (!root.barHidden && Quickshell.env("XDG_SESSION_DESKTOP") === "mango") {
+          remapGuard.remapping = true
+        }
+      }
+    }
+
     anchors {
       top: root.position === "top" || root.vertical
       bottom: root.position === "bottom" || root.vertical

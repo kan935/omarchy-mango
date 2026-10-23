@@ -51,7 +51,8 @@ The installer:
 - enables RPM Fusion free/nonfree, Terra, the `errornointernet/quickshell`,
   `imput/helium` and `peterwu/rendezvous` COPRs, and the Stremio beta
   repository
-- installs the Fedora package list in `install/omarchy-fedora.packages`
+- installs the Fedora package list in `install/omarchy-fedora.packages`, plus
+  the Craft apps and Nuvio from their latest GitHub releases
 - copies the fork to `~/.local/share/omarchy`, including the Quattro `shell/`
 - copies `config/*` to `~/.config`, backing up replaced files to
   `~/.config/omarchy-install-backup-<timestamp>`
@@ -110,7 +111,7 @@ Mango uses the same `Super`-based layout as Omarchy. The main bindings:
 
 | Binding | Action |
 | --- | --- |
-| `Super + Return` | Terminal (Alacritty via `xdg-terminal-exec`) |
+| `Super + Return` | Terminal (Foot via `xdg-terminal-exec`) |
 | `Super + Shift + Return` | Browser |
 | `Super + Space` | Omarchy menu (Quattro) |
 | `Super + Alt + Space` | Omarchy menu (Quattro) |

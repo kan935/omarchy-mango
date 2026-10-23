@@ -160,14 +160,7 @@ install_packages() {
   [[ -f $package_file ]] || die "Missing package list: $package_file"
 
   package_installed() {
-    case "$1" in
-    ffmpeg-free)
-      command -v ffmpeg >/dev/null 2>&1 || rpm -q ffmpeg-free >/dev/null 2>&1
-      ;;
-    *)
-      rpm -q "$1" >/dev/null 2>&1
-      ;;
-    esac
+    rpm -q "$1" >/dev/null 2>&1
   }
 
   while IFS= read -r package; do
@@ -182,6 +175,13 @@ install_packages() {
 
   log "Installing ${#pending[@]} Fedora packages (this can take a while)"
   sudo -v
+
+  # Fedora ships the codec-limited build; RPM Fusion's full build provides the
+  # playback Omarchy expects and conflicts with it.
+  if rpm -q ffmpeg-free >/dev/null 2>&1 && ! rpm -q ffmpeg >/dev/null 2>&1; then
+    sudo dnf swap -y ffmpeg-free ffmpeg --allowerasing || warn "Could not replace ffmpeg-free with ffmpeg"
+  fi
+
   sudo dnf install -y --skip-unavailable "${pending[@]}" || true
 
   for package in "${pending[@]}"; do
@@ -193,6 +193,36 @@ install_packages() {
     echo "MangoWC is packaged as 'mangowm' in the Terra repository: https://terra.fyralabs.com/" >&2
     echo "Install the remaining packages manually, then rerun this script." >&2
   fi
+}
+
+install_release_apps() {
+  local repo package url
+
+  [[ $(uname -m) == "x86_64" ]] || return 0
+
+  while read -r repo package; do
+    rpm -q "$package" >/dev/null 2>&1 && continue
+
+    log "Installing $package from the latest GitHub release"
+    url=$(curl -fsSL --max-time 30 "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null |
+      grep -oE 'https://[^"]+x86_64[^"]*\.rpm' | head -n 1 || true)
+
+    if [[ -z $url ]]; then
+      warn "No x86_64 RPM found for $package"
+      continue
+    fi
+
+    sudo -v
+    sudo dnf install -y "$url" || warn "Could not install $package"
+  done <<'EOF'
+storytold/pdfcraft pdfcraft
+storytold/wordcraft wordcraft
+storytold/cadcraft cadcraft
+storytold/deckcraft deckcraft
+storytold/gridcraft gridcraft
+storytold/photocraft photocraft
+NuvioMedia/NuvioDesktop nuvio
+EOF
 }
 
 copy_program_files() {
@@ -261,11 +291,17 @@ install_session_file() {
     /usr/local/share/wayland-sessions/omarchy-mango.desktop
 }
 
-install_browser_policy_dir() {
+configure_browser() {
   log "Preparing Chromium and Helium theme policy directory"
   sudo -v || die "sudo access is required to create the browser policy directory"
   sudo mkdir -p /etc/chromium/policies/managed
   sudo chmod a+rw /etc/chromium/policies/managed
+
+  log "Setting Helium as the default browser"
+  xdg-settings set default-web-browser helium.desktop || warn "Could not set the default browser"
+  xdg-mime default helium.desktop x-scheme-handler/http
+  xdg-mime default helium.desktop x-scheme-handler/https
+  xdg-mime default helium.desktop text/html
 }
 
 prepare_theme() {
@@ -349,12 +385,13 @@ if ! $SKIP_PACKAGES; then
   configure_dnf
   configure_repos
   install_packages
+  install_release_apps
 fi
 
 copy_program_files
 copy_user_config
 install_session_file
-install_browser_policy_dir
+configure_browser
 prepare_theme
 install_lock_auth
 mark_migrations_applied

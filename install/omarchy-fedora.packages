@@ -6,7 +6,8 @@
 #
 # Optional apps that Fedora does not package (Spotify, Obsidian, Typora,
 # LocalSend) are intentionally not listed. Install them from Flathub or their
-# vendor repositories.
+# vendor repositories. Craft apps and Nuvio are installed from their latest
+# GitHub releases by install-fedora.sh.
 
 # Compositor and desktop shell
 mangowm
@@ -61,22 +62,19 @@ tesseract-langpack-eng
 zbar
 qrencode
 ImageMagick
-# ffmpeg-free is the Fedora package; RPM Fusion's full `ffmpeg` package
-# conflicts with it. The installer accepts either one.
-ffmpeg-free
+# RPM Fusion's full ffmpeg package; install-fedora.sh swaps it in for
+# ffmpeg-free when Fedora preinstalled the free variant.
+ffmpeg
 
 # Terminals and everyday applications
-alacritty
-chromium
-nautilus
-nautilus-python
-sushi
-gnome-text-editor
+foot
+helium-bin
+nemo
+telegram-desktop
+harbor-beta
 gnome-calculator
 gnome-disk-utility
 file-roller
-evince
-zathura
 imv
 mpv
 network-manager-applet
@@ -95,6 +93,13 @@ fcitx5-qt
 fcitx5-mozc
 
 # CLI tools used by Omarchy
+git
+neovim
+curl
+gh
+distrobox
+podman
+flatpak
 jq
 yq
 fzf
@@ -126,3 +131,4 @@ google-noto-emoji-fonts
 adwaita-icon-theme
 adw-gtk3-theme
 yaru-icon-theme
+bibata-cursor-themes

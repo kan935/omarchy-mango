@@ -2,8 +2,10 @@
 
 # omarchy:summary=Launch the Omarchy screensaver in the default terminal on every monitor.
 
-# Exit early if the screensaver is already running
-pgrep -f org.omarchy.screensaver >/dev/null && exit 0
+# Exit early if the screensaver is already running. The bracket trick keeps the
+# launcher's own cmdline from matching — the class appears in argv, so a plain
+# pattern would match anything that mentions it (including this script's caller).
+pgrep -f '[o]rg.omarchy.screensaver' >/dev/null && exit 0
 
 # Allow screensaver to be turned off but also force started
 if omarchy-toggle-enabled screensaver-off && [[ $1 != "force" ]]; then

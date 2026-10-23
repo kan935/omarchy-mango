@@ -17,7 +17,7 @@ if [[ ${CLIPBOARD_STATE:-} == "sensitive" ]] || grep -qx 'x-kde-passwordManagerH
 fi
 
 tmp=
-trap 'rm -f -- "$tmp"' EXIT
+trap 'rm -f -- "$tmp" ${tmp:+"$tmp.utf8"}' EXIT
 
 # The clipboard owner streams the copy and can stall without closing its end, so
 # every read is bounded, and a copy cut off at the deadline is dropped, not kept.
@@ -52,50 +52,18 @@ emit_text() {
   tmp=$(mktemp --tmpdir="$STATE_DIR" clipboard.XXXXXX) || return 0
   read_copy "$@" || return
 
-  perl -MEncode=decode,FB_CROAK,LEAVE_SRC -MJSON::PP=encode_json -0777 -e '
-    my $raw = <STDIN>;
-    exit unless length $raw;
+  # BOM-marked UTF-16 is the one non-UTF-8 text form clients still put on the
+  # clipboard; iconv drops the BOM when it converts.
+  local bom text_file="$tmp"
+  bom=$(od -An -tx1 -N2 "$tmp" | tr -d ' \n')
+  if [[ $bom == "fffe" || $bom == "feff" ]]; then
+    text_file="$tmp.utf8"
+    iconv -f UTF-16 -t UTF-8 "$tmp" >"$text_file" 2>/dev/null || text_file="$tmp"
+  fi
 
-    my $encoding;
-    my $heuristic_encoding = 0;
-    if ($raw =~ /^(?:\xFF\xFE|\xFE\xFF)/) {
-      $encoding = "UTF-16";
-    } elsif (length($raw) % 2 == 0 && index($raw, "\0") >= 0) {
-      my $units = length($raw) / 2;
-      my $nuls = $raw =~ tr/\0/\0/;
-
-      # Neither byte lane can reach the padding threshold when the entire
-      # payload contains fewer NULs than that, so avoid two full string passes.
-      if ($nuls * 4 >= $units * 3) {
-        my $even_bytes = $raw;
-        $even_bytes =~ s/(.)./$1/sg;
-        my $even_nuls = $even_bytes =~ tr/\0/\0/;
-        undef $even_bytes;
-
-        my $odd_bytes = $raw;
-        $odd_bytes =~ s/.(.)/$1/sg;
-        my $odd_nuls = $odd_bytes =~ tr/\0/\0/;
-
-        # BOM-less UTF-16 is indistinguishable from NUL-separated bytes. Decode
-        # only when at least three quarters of the code units have consistent
-        # padding and fewer than one quarter have NULs in the opposite byte.
-        if ($odd_nuls * 4 >= $units * 3 && $even_nuls * 4 < $units) {
-          $encoding = "UTF-16LE";
-          $heuristic_encoding = 1;
-        } elsif ($even_nuls * 4 >= $units * 3 && $odd_nuls * 4 < $units) {
-          $encoding = "UTF-16BE";
-          $heuristic_encoding = 1;
-        }
-      }
-    }
-
-    my $text = $encoding ? eval { decode($encoding, $raw, FB_CROAK | LEAVE_SRC) } : undef;
-    if ($heuristic_encoding && defined($text) && $text =~ /[\x00-\x08\x0E-\x1A\x1C-\x1F]/) {
-      $text = undef;
-    }
-    $text = decode("UTF-8", $raw) unless defined $text;
-    print "{\"type\":\"text\",\"text\":", encode_json($text), "}\n";
-  ' <"$tmp"
+  # The watcher reads this stream line by line, so the JSON must stay compact.
+  # shortcut: BOM-less UTF-16 is read as UTF-8; Linux clipboards are UTF-8.
+  jq -Rsc '{type:"text", text:.}' <"$text_file"
 }
 
 case "${1:-}" in

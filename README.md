@@ -46,8 +46,12 @@ cd ~/omarchy-mango
 
 The installer:
 
+- sets `defaultyes`, `fastestmirror`, and 10 parallel downloads in
+  `/etc/dnf/dnf.conf`
+- enables RPM Fusion free/nonfree, Terra, the `errornointernet/quickshell`,
+  `imput/helium` and `peterwu/rendezvous` COPRs, and the Stremio beta
+  repository
 - installs the Fedora package list in `install/omarchy-fedora.packages`
-- enables the Quickshell COPR and installs `quickshell` when it is missing
 - copies the fork to `~/.local/share/omarchy`, including the Quattro `shell/`
 - copies `config/*` to `~/.config`, backing up replaced files to
   `~/.config/omarchy-install-backup-<timestamp>`

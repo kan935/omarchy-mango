@@ -4,17 +4,26 @@ from collections import Counter
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
 import configure as setup
 
 
+def config_home():
+  return Path(os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config"))
+
+
 def keyboard_catalog():
   # Read the same choices as the ISO and first-boot form, then convert console
   # keymaps through systemd's mapping, just as localectl does during install.
-  choices = setup.run(["bash", "-c", 'source "$1"; printf "%s\\n" "$OMARCHY_KEYBOARD_LAYOUTS"',
-                       "bash", str(setup.ROOT / "install/provisioning/setup-form.sh")])
+  choices = ""
+  catalog_path = setup.ROOT / "default/input-methods/keyboard-layouts.txt"
+  if catalog_path.exists():
+    choices = "\n".join(
+      line for line in catalog_path.read_text().splitlines()
+      if line.strip() and not line.lstrip().startswith("#"))
   mappings = {}
   for line in Path("/usr/share/systemd/kbd-model-map").read_text().splitlines():
     fields = line.split()
@@ -36,9 +45,25 @@ def keyboard_catalog():
   return catalog
 
 
+MANGO_INPUT_KEYS = ("xkb_rules_layout", "xkb_rules_variant", "xkb_rules_options")
+
+
+def mango_input_values(config_home):
+  # Mango's input file keeps the keyboard selection, like Hyprland's input
+  # options did. Machine defaults answer for a not-yet-written user file, and
+  # its commented examples never win over live values.
+  for path in (config_home / "mango/input.conf", setup.ROOT / "default/mango/input.conf"):
+    text = setup.read(path)
+    signed = setup.values(text)
+    if "xkb_rules_layout" in signed:
+      return signed
+  return {}
+
+
 def keyboard_selection():
-  layouts = json.loads(setup.run(["hyprctl", "-j", "getoption", "input:kb_layout"]))["str"].split(",")
-  variants = json.loads(setup.run(["hyprctl", "-j", "getoption", "input:kb_variant"]))["str"].split(",")
+  signed = mango_input_values(config_home())
+  layouts = signed.get("xkb_rules_layout", "us").split(",")
+  variants = signed.get("xkb_rules_variant", "").split(",")
   return [layout + (":" + variants[index] if index < len(variants) and variants[index] else "")
           for index, layout in enumerate(layouts)]
 
@@ -175,18 +200,12 @@ def keyboard_values(selected):
 
 def save_keyboard(selected):
   layouts, variants = keyboard_values(selected)
-  config_home = Path(os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config"))
-  path = config_home / "omarchy/keyboard-layouts"
+  path = config_home() / "mango/input.conf"
   original = setup.read(path) if path.exists() else None
   group, old_layout, before = setup.live_group()
   group_changed = False
-  previous_errors = setup.run(["hyprctl", "configerrors"])
   try:
-    setup.atomic_write(path, f"XKBLAYOUT={layouts}\nXKBVARIANT={variants}\n")
-    setup.run(["hyprctl", "reload"])
-    errors = setup.run(["hyprctl", "configerrors"])
-    if errors and errors != previous_errors:
-      raise RuntimeError(errors)
+    save_mango_input(path, layouts, variants, original)
     expected = [layout + (":" + variant if variant else "")
                 for layout, variant in zip(layouts.split(","), variants.split(","))]
     if keyboard_selection() != expected:
@@ -212,12 +231,43 @@ def save_keyboard(selected):
       path.resolve().unlink(missing_ok=True)
     else:
       setup.atomic_write(path, original)
-    try:
-      setup.run(["hyprctl", "reload"])
-    finally:
-      if group_changed:
-        setup.live_set(group, old_layout, before)
+    if group_changed:
+      setup.live_set(group, old_layout, before)
     raise
+
+
+def save_mango_input(path, layouts, variants, original):
+  # Patch the active xkb_rules_* lines in place, whatever else the file
+  # carries: Mango's auto reload picks the edit up live, so no compositor
+  # restart command is needed. A missing user file starts from the fork
+  # defaults so the machine's other input settings stay visible.
+  text = (original or setup.read(setup.ROOT / "default/mango/input.conf")).splitlines(keepends=True)
+  qualified = ((MANGO_INPUT_KEYS[0], layouts), (MANGO_INPUT_KEYS[1], variants))
+  found = set()
+  for index, line in enumerate(text):
+    for key, value in qualified:
+      if re.match(r"^" + key + r"\s*=.*$", line):
+        text[index] = f"{key}={value}\n"
+        found.add(key)
+  options = mango_input_values(config_home()).get(MANGO_INPUT_KEYS[2]) or "compose:caps"
+  grp_rules = [rule for rule in options.split(",") if rule.startswith("grp:")]
+  if len(layouts.split(",")) > 1 and not grp_rules:
+    options += ("" if not options or options.endswith(",") else ",") + "grp:alts_toggle"
+  for key, value in [(MANGO_INPUT_KEYS[2], options), *[(key, value) for key, value in qualified if key not in found]]:
+    # Keep one options line and append only keys the file lacks entirely.
+    for index, line in enumerate(text):
+      if re.match(r"^" + key + r"\s*=.*$", line):
+        text[index] = f"{key}={value}\n"
+        break
+    else:
+      text.append(f"{key}={value}\n")
+  setup.atomic_write(path, "".join(text))
+  # Mango watches its config files (auto reload); the explicit dispatch is the
+  # belt and braces the fork's other config writers lean on.
+  try:
+    setup.run(["mmsg", "dispatch", "reload_config"])
+  except (OSError, subprocess.CalledProcessError):
+    pass
 
 
 def configure_keyboard():

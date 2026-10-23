@@ -109,24 +109,32 @@ done_file=$(mktemp)
 rm -f "$done_file"
 trap 'rm -f "$selection_file" "$done_file"' EXIT
 
-options_json=$(perl -MEncode=decode -MJSON::PP=encode_json -e 'print encode_json([map { decode("UTF-8", $_) } @ARGV])' "${options[@]}")
-selected_json=$(perl -MEncode=decode -MJSON::PP=encode_json -e 'print encode_json([map { decode("UTF-8", $_) } @ARGV])' "${selected[@]}")
-payload=$(perl -MEncode=decode -MJSON::PP=encode_json,decode_json -e '
-  my $payload = {
-    mode => "select",
-    prompt => decode("UTF-8", $ARGV[0]),
-    options => decode_json($ARGV[1]),
-    multiple => $ARGV[6] ? JSON::PP::true : JSON::PP::false,
-    selected => decode_json($ARGV[7]),
-    onChange => decode_json($ARGV[8]),
-    changeKey => $ARGV[9],
-    selectionFile => decode("UTF-8", $ARGV[2]),
-    doneFile => decode("UTF-8", $ARGV[3])
-  };
-  $payload->{width} = int($ARGV[4]) if length($ARGV[4] // "");
-  $payload->{maxHeight} = int($ARGV[5]) if length($ARGV[5] // "");
-  print encode_json($payload)
-' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight" "$multiple" "$selected_json" "$on_change" "$change_key")
+options_json=$(jq -cn '$ARGS.positional' --args -- "${options[@]}")
+selected_json=$(jq -cn '$ARGS.positional' --args -- "${selected[@]}")
+payload=$(jq -cn \
+  --arg prompt "$prompt" \
+  --argjson options "$options_json" \
+  --argjson selected "$selected_json" \
+  --argjson onChange "$on_change" \
+  --arg changeKey "$change_key" \
+  --arg selectionFile "$selection_file" \
+  --arg doneFile "$done_file" \
+  --arg width "$menu_width" \
+  --arg maxHeight "$menu_maxheight" \
+  --argjson multiple "$([[ $multiple == 1 ]] && echo true || echo false)" \
+  '{
+    mode: "select",
+    prompt: $prompt,
+    options: $options,
+    multiple: $multiple,
+    selected: $selected,
+    onChange: $onChange,
+    changeKey: $changeKey,
+    selectionFile: $selectionFile,
+    doneFile: $doneFile
+  }
+  + (if $width != "" then {width: ($width | tonumber)} else {} end)
+  + (if $maxHeight != "" then {maxHeight: ($maxHeight | tonumber)} else {} end)')
 
 omarchy-shell shell summon omarchy.menu "$payload" >/dev/null || exit 2
 

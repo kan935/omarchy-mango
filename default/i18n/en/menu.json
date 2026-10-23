@@ -1169,18 +1169,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "Channel"
-  },
   "update.config": {
     "label": "Config",
     "title": "Reset to default"
-  },
-  "update.themes": {
-    "label": "Extra Themes"
   },
   "update.process": {
     "label": "Process",
@@ -1202,29 +1193,8 @@
   "update.time": {
     "label": "Time"
   },
-  "update.channel.stable": {
-    "label": "Stable"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "Shell"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"
@@ -1252,5 +1222,8 @@
   },
   "update.password.user": {
     "label": "User"
+  },
+  "update.omarchy": {
+    "label": "Fedora Update System"
   }
 }

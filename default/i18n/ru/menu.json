@@ -1076,18 +1076,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "Канал"
-  },
   "update.config": {
     "label": "Конфигурация",
     "title": "Сбросить по умолчанию"
-  },
-  "update.themes": {
-    "label": "Дополнительные темы"
   },
   "update.process": {
     "label": "Процесс",
@@ -1109,29 +1100,8 @@
   "update.time": {
     "label": "Время"
   },
-  "update.channel.stable": {
-    "label": "Стабильный"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "Shell"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"

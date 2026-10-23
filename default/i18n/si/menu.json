@@ -1076,18 +1076,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "නාලිකාව"
-  },
   "update.config": {
     "label": "වින්‍යාසය",
     "title": "පෙරනිමියට යළි සකසන්න"
-  },
-  "update.themes": {
-    "label": "අමතර තේමා"
   },
   "update.process": {
     "label": "ක්‍රියාවලිය",
@@ -1109,29 +1100,8 @@
   "update.time": {
     "label": "වේලාව"
   },
-  "update.channel.stable": {
-    "label": "ස්ථායි"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "Shell"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"

@@ -1,0 +1,57 @@
+# Omarchy keyboard layout catalog — Mango
+#
+# Label|console-keymap rows for the Keyboard Layouts picker. The keymap
+# converts to its XKB layout through /usr/share/systemd/kbd-model-map; where
+# Fedora's table has no entry the fork mapping table in typing_setup.py
+# supplies one (ara, pl, ua plus the older Arch console names).
+#
+# Composition engines (Pinyin, Hangul, ...) have no layout row here: they are
+# installed and switched under Setup > Typing > Input Methods instead. The
+# first row claims the us layout's label for the picker, so keep it on top.
+
+English (US)|us
+Arabic|ara
+Belarusian|by
+Belgian|be-latin1
+Bulgarian (Phonetic)|bg-cp1251
+Croatian|croat
+Czech|cz
+Danish|dk-latin1
+Dutch|nl
+English (UK)|uk
+English (US, Colemak)|colemak
+English (US, Dvorak)|dvorak
+Estonian|et
+Finnish|fi
+French|fr
+French (Canada)|cf
+French (Switzerland)|fr_CH
+Georgian|ge
+German|de
+German (Switzerland)|de_CH-latin1
+Greek|gr
+Hebrew|il
+Hungarian|hu
+Icelandic|is-latin1
+Irish|ie
+Italian|it
+Kazakh|kazakh
+Kyrgyz|kyrgyz
+Lao|us||la
+Latvian|lv
+Lithuanian|lt
+Macedonian|mk-utf
+Norwegian|no-latin1
+Polish|pl
+Portuguese|pt-latin1
+Portuguese (Brazil)|br-abnt2
+Romanian|ro
+Russian|ru
+Serbian (Latin)|sr-latin
+Slovak (QWERTZ)|sk-qwertz
+Slovenian|slovene
+Spanish|es
+Spanish (Latin American)|la-latin1
+Swedish|sv-latin1
+Turkish|trq
+Ukrainian|ua

@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# omarchy:summary=Generate the system locale for an Omarchy language
+# omarchy:args=<code>
+# omarchy:hidden=true
+
+set -euo pipefail
+
+# Fedora keeps locales in glibc langpacks: da_DK.UTF-8 comes from
+# glibc-langpack-da, zh_CN.UTF-8 from glibc-langpack-zh, and so on. The
+# langpack name is the language part of the registry locale, lowercase.
+code=${1:-}
+if (( $# != 1 )) || [[ ! $code =~ ^[a-z]{2,3}(-[A-Za-z]{2})?$ ]]; then
+  echo "Usage: omarchy-locale-generate <code>" >&2
+  exit 1
+fi
+
+# Root reads only the packaged registry; the override is for unprivileged
+# tests (same convention as omarchy-language).
+registry=${OMARCHY_LOCALE_REGISTRY:-$OMARCHY_PATH/default/i18n/locales.json}
+
+locale=$(jq -r --arg code "$code" '.[$code].locale // empty' "$registry")
+if [[ ! $locale =~ ^[a-z]{2,3}_[A-Z]{2}\.UTF-8$ ]]; then
+  echo "Unknown language code: $code" >&2
+  exit 1
+fi
+
+if (( EUID != 0 )); then
+  echo "omarchy-locale-generate must run as root: sudo or pkexec it." >&2
+  exit 1
+fi
+
+# locale -a spells locales lc_collate style lower case (en_us.utf8); compare
+# squashed, the way omarchy-language does for its availability check.
+locale_available() {
+  local want available
+  want=$(echo "$1" | tr -cd 'a-zA-Z0-9' | tr '[:upper:]' '[:lower:]')
+  available=" $(locale -a 2>/dev/null | tr -cd 'a-zA-Z0-9\n' | tr '[:upper:]' '[:lower:]' | tr '\n' ' ') "
+  [[ $available == *" $want "* ]]
+}
+
+if locale_available "$locale"; then
+  echo "$locale is already available."
+  exit 0
+fi
+
+dnf install -y "glibc-langpack-${locale%%_*}"
+
+# Fail loudly if dnf could not make the locale, rather than saving a language
+# whose strings cannot render.
+locale_available "$locale"

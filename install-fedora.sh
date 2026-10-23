@@ -38,7 +38,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  --skip-packages   Do not install Fedora packages
+  --skip-packages   Do not configure repositories or install Fedora packages
   --theme <name>    Initial theme (default: tokyo-night)
   -h, --help        Show this help
 EOF
@@ -70,6 +70,87 @@ done
 export OMARCHY_PATH
 export PATH="$OMARCHY_PATH/bin:$HOME/.local/bin:$PATH"
 
+set_dnf_option() {
+  local key="$1"
+  local value="$2"
+  local conf="$3"
+
+  if grep -qE "^[[:space:]]*$key[[:space:]]*=" "$conf"; then
+    sudo sed -i -E "s|^[[:space:]]*$key[[:space:]]*=.*|$key=$value|" "$conf"
+  else
+    echo "$key=$value" | sudo tee -a "$conf" >/dev/null
+  fi
+}
+
+configure_dnf() {
+  local conf="/etc/dnf/dnf.conf"
+
+  [[ -f $conf ]] || die "Missing $conf; this installer expects a stock Fedora dnf.conf."
+
+  log "Configuring dnf: default yes, fastest mirror, parallel downloads"
+  sudo -v || die "sudo access is required to configure dnf"
+
+  set_dnf_option defaultyes True "$conf"
+  set_dnf_option fastestmirror True "$conf"
+  set_dnf_option max_parallel_downloads 10 "$conf"
+}
+
+configure_repos() {
+  local releasever=""
+  local project=""
+
+  releasever="$(rpm -E %fedora)"
+  sudo -v || die "sudo access is required to enable package repositories"
+
+  log "Enabling RPM Fusion, Terra, and the extra COPRs"
+
+  rpm -q rpmfusion-free-release >/dev/null 2>&1 ||
+    sudo dnf install -y "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$releasever.noarch.rpm"
+  rpm -q rpmfusion-nonfree-release >/dev/null 2>&1 ||
+    sudo dnf install -y "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$releasever.noarch.rpm"
+
+  # Terra carries mangowm. Its release package is unsigned, so dnf needs
+  # --nogpgcheck for this one install.
+  rpm -q terra-release >/dev/null 2>&1 ||
+    sudo dnf install -y --nogpgcheck --repofrompath "terra,https://repos.fyralabs.com/terra$releasever" terra-release
+
+  # dnf5's copr command lives in dnf5-plugins, which a minimal Fedora
+  # installation may not include yet.
+  dnf copr --help >/dev/null 2>&1 || sudo dnf install -y dnf5-plugins
+  for project in errornointernet/quickshell imput/helium peterwu/rendezvous; do
+    sudo dnf copr enable -y "$project" >/dev/null
+  done
+
+  # Stremio beta, packaged by harborstremio and hosted on Cloudsmith.
+  if [[ ! -f /etc/yum.repos.d/harborstremio-harbor-beta.repo ]]; then
+    sudo tee /etc/yum.repos.d/harborstremio-harbor-beta.repo >/dev/null <<EOF
+[harborstremio-harbor-beta]
+name=harborstremio-harbor-beta
+baseurl=https://dl.cloudsmith.io/public/harborstremio/harbor-beta/rpm/fedora/$releasever/\$basearch
+repo_gpgcheck=1
+enabled=1
+skip_if_unavailable=1
+gpgkey=https://dl.cloudsmith.io/public/harborstremio/harbor-beta/gpg.DBAA4A70AAEC7957.key
+gpgcheck=1
+sslverify=1
+metadata_expire=300
+type=rpm-md
+
+[harborstremio-harbor-beta-noarch]
+name=harborstremio-harbor-beta-noarch
+baseurl=https://dl.cloudsmith.io/public/harborstremio/harbor-beta/rpm/fedora/$releasever/noarch
+repo_gpgcheck=1
+enabled=1
+skip_if_unavailable=1
+gpgkey=https://dl.cloudsmith.io/public/harborstremio/harbor-beta/gpg.DBAA4A70AAEC7957.key
+gpgcheck=1
+sslverify=1
+metadata_expire=300
+type=rpm-md
+EOF
+  fi
+}
+
 install_packages() {
   local package_file="$SOURCE_DIR/install/omarchy-fedora.packages"
   local package=""
@@ -77,18 +158,6 @@ install_packages() {
   local missing=()
 
   [[ -f $package_file ]] || die "Missing package list: $package_file"
-
-  # Quickshell is the Quattro desktop shell. Fedora does not carry it in its
-  # main repositories, so enable the maintained COPR when it is not installed.
-  if ! rpm -q quickshell >/dev/null 2>&1; then
-    sudo -v
-    # dnf5's copr command lives in dnf5-plugins, which a minimal Fedora
-    # installation may not include yet.
-    if ! dnf copr --help >/dev/null 2>&1; then
-      sudo dnf install -y dnf5-plugins
-    fi
-    sudo dnf copr enable -y errornointernet/quickshell
-  fi
 
   package_installed() {
     case "$1" in
@@ -277,6 +346,8 @@ verify_install() {
 }
 
 if ! $SKIP_PACKAGES; then
+  configure_dnf
+  configure_repos
   install_packages
 fi
 

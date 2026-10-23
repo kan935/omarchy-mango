@@ -1076,18 +1076,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "Csatorna"
-  },
   "update.config": {
     "label": "Konfiguráció",
     "title": "Visszaállítás alapra"
-  },
-  "update.themes": {
-    "label": "Extra témák"
   },
   "update.process": {
     "label": "Folyamat",
@@ -1109,29 +1100,8 @@
   "update.time": {
     "label": "Idő"
   },
-  "update.channel.stable": {
-    "label": "Stabil"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "Shell"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"

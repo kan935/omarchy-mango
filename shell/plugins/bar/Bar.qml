@@ -2426,7 +2426,7 @@ Item {
         ? root : root.pluginBarApiFor(pluginApiId, moduleName, registered)
       if ("moduleName" in target) target.moduleName = moduleName
       if ("settings" in target) target.settings = moduleSettings
-      if ("screenName" in target) target.screenName = root.slotScreenName(slot)
+      if ("screenName" in target) target.screenName = root.slotScreenName(owner)
     }
 
     Component {

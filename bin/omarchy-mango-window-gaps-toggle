@@ -1,13 +1,23 @@
 #!/bin/bash
 
-# omarchy:summary=Toggle gaps between windows
+# omarchy:summary=Toggle gaps and borders around windows
+
+OVERRIDE="$HOME/.local/state/omarchy/toggles/mango/window-gaps.conf"
+mkdir -p "$(dirname "$OVERRIDE")"
 
 mmsg dispatch togglegaps >/dev/null 2>&1
 
 if omarchy-toggle-enabled window-gaps-off; then
+  rm -f "$OVERRIDE"
   omarchy-toggle window-gaps-off
   notify-send -u low "󱂬    Window gaps enabled"
 else
+  cat >"$OVERRIDE" <<'EOF'
+border_px=0
+border_radius=0
+EOF
   omarchy-toggle window-gaps-off
   notify-send -u low "󱂬    Window gaps disabled"
 fi
+
+mmsg dispatch reload_config >/dev/null 2>&1 || true

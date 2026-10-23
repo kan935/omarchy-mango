@@ -31,9 +31,6 @@ BarIndicator {
   onBarChanged: refresh()
   Component.onCompleted: refresh()
 
-  // No polling: each probe is a hardened script plus sudo calls that can log.
-  // omarchy-sudo-passwordless refreshes omarchy.indicators on enable, disable
-  // and expiry instead.
   Connections {
     target: root.indicatorHost
     ignoreUnknownSignals: true
@@ -63,6 +60,6 @@ BarIndicator {
   onPressed: function() {
     if (!root.bar || disableProc.running) return
     if (root.granted) disableProc.running = true
-    else root.bar.run("omarchy-launch-floating-terminal-with-presentation omarchy-sudo-passwordless")
+    else root.bar.run("omarchy-launch-sudo-passwordless")
   }
 }

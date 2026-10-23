@@ -1,10 +1,18 @@
 #!/bin/bash
 
 # omarchy:summary=Set and show lightweight desktop notification reminders
-# omarchy:args=<minutes> [message] | show | clear
+# omarchy:args=<minutes> [message] | show [--json] | -i | clear
 # omarchy:examples=omarchy reminder 5 | omarchy reminder 30 "Check the oven" | omarchy reminder show | omarchy reminder clear
 
 set -euo pipefail
+
+OMARCHY_BIN="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/bin"
+
+# Tell the bar's Reminder indicator to re-probe. Best effort: the shell may
+# not be running (ssh, TTY, another session).
+refresh_indicator() {
+  "$OMARCHY_BIN/omarchy-shell" -q omarchy.indicators refresh 2>/dev/null || true
+}
 
 format_remaining() {
   local seconds=$1
@@ -41,7 +49,8 @@ parse_systemd_timespan() {
 }
 
 show_reminders() {
-  local timers timer next next_seconds uptime remaining body=""
+  local json_mode=${1:-false}
+  local timers timer next next_seconds uptime remaining body="" count=0
   local reminder_dir="${XDG_RUNTIME_DIR:-/tmp}/omarchy-reminders"
   local reminder_message=""
 
@@ -63,14 +72,20 @@ show_reminders() {
     reminder_message=""
     [[ -f $reminder_dir/${timer%.timer}.message ]] && reminder_message=$(<"$reminder_dir/${timer%.timer}.message")
 
-    if [[ -n $reminder_message ]]; then
+    # JSON mode answers the bar indicator's poll silently instead of
+    # popping a notification on every shell restart.
+    if [[ $json_mode == "true" ]]; then
+      count=$((count + 1))
+    elif [[ -n $reminder_message ]]; then
       body+="$reminder_message in $(format_remaining $remaining) ($(date -d "@$((set_at + reminder_minutes * 60))" +%-H:%M))"$'\n'
     else
       body+="${reminder_minutes}-min reminder in $(format_remaining $remaining) ($(date -d "@$((set_at + reminder_minutes * 60))" +%-H:%M))"$'\n'
     fi
   done
 
-  if [[ -z $body ]]; then
+  if [[ $json_mode == "true" ]]; then
+    printf '{"count":%d,"tooltip":"%d outstanding reminder(s)"}\n' "$count" "$count"
+  elif [[ -z $body ]]; then
     omarchy-notification-send "󰔛" "Upcoming reminders" "No outstanding reminders" -u low
   else
     omarchy-notification-send "󰔛" "Upcoming reminders" "${body%$'\n'}" -u low
@@ -89,12 +104,20 @@ clear_reminders() {
 
   rm -f "$reminder_dir"/omarchy-reminder-*.message 2>/dev/null || true
   omarchy-notification-send "󰔛" "All reminders have been cleared" -u low
+  refresh_indicator
 }
 
 case ${1:-} in
 show | list)
-  show_reminders
+  if [[ ${2:-} == "--json" ]]; then
+    show_reminders true
+  else
+    show_reminders
+  fi
   exit 0
+  ;;
+-i)
+  exec omarchy-shell shell summon omarchy.reminders "{}"
   ;;
 clear)
   clear_reminders
@@ -134,6 +157,8 @@ if [[ -n $custom_message ]]; then
 fi
 
 systemd-run --user --quiet --collect --on-active="${minutes}m" --unit="$unit" \
-  bash -c 'omarchy-notification-send "󰔛" "Reminder" "$1" -u critical; rm -f "$2"' bash "$message" "$message_file"
+  bash -c 'omarchy-notification-send "󰔛" "Reminder" "$1" -u critical; rm -f "$2"; OMARCHY_BIN="$3"; "$OMARCHY_BIN/omarchy-shell" -q omarchy.indicators refresh 2>/dev/null || true' \
+  bash "$message" "$message_file" "$OMARCHY_BIN"
 
 omarchy-notification-send "󰔛" "$confirmation_title" "$confirmation" -u low
+refresh_indicator

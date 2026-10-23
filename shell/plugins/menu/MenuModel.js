@@ -18,7 +18,10 @@ function normalizeItem(id, raw) {
     parent = id.indexOf(".") >= 0 ? id.split(".").slice(0, -1).join(".") : "root"
   if (id === "root") parent = ""
 
-  var kind = value.action ? "action" : (value.target ? "link" : "menu")
+  // Provider-backed items render as submenus even when they also carry an
+  // action (e.g. `apps` opens a submenu and can optionally summon the dock);
+  // the submenu wins, otherwise the provider would never be reached.
+  var kind = value.action && !value.provider ? "action" : (value.target ? "link" : "menu")
 
   return {
     id: id,

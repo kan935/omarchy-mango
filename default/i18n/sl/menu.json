@@ -1076,18 +1076,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "Kanal"
-  },
   "update.config": {
     "label": "Konfiguracija",
     "title": "Ponastavi na privzeto"
-  },
-  "update.themes": {
-    "label": "Dodatne teme"
   },
   "update.process": {
     "label": "Proces",
@@ -1109,29 +1100,8 @@
   "update.time": {
     "label": "Čas"
   },
-  "update.channel.stable": {
-    "label": "Stabilen"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "Lupina"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"

@@ -1076,18 +1076,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "채널"
-  },
   "update.config": {
     "label": "설정",
     "title": "기본값으로 초기화"
-  },
-  "update.themes": {
-    "label": "추가 테마"
   },
   "update.process": {
     "label": "프로세스",
@@ -1109,29 +1100,8 @@
   "update.time": {
     "label": "시간"
   },
-  "update.channel.stable": {
-    "label": "안정"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "Shell"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"

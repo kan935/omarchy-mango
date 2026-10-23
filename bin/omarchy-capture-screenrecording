@@ -248,8 +248,11 @@ stop_screenrecording() {
 }
 
 toggle_screenrecording_indicator() {
-  # The Quattro recording indicator polls this script's --status.
-  :
+  # The Quattro recording indicator polls this script's --status, but only
+  # when told to: ask the shell to broadcast a refresh after every change.
+  local shell_bin
+  shell_bin=$(command -v omarchy-shell 2>/dev/null || echo "${OMARCHY_PATH:-$HOME/.local/share/omarchy}/bin/omarchy-shell")
+  "$shell_bin" -q omarchy.indicators refresh 2>/dev/null || true
 }
 
 screenrecording_active() {

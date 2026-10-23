@@ -1076,18 +1076,9 @@
   "remove.development.elixir.phoenix": {
     "label": "Phoenix"
   },
-  "update.omarchy": {
-    "label": "Omarchy"
-  },
-  "update.channel": {
-    "label": "チャネル"
-  },
   "update.config": {
     "label": "構成",
     "title": "デフォルトにリセット"
-  },
-  "update.themes": {
-    "label": "追加テーマ"
   },
   "update.process": {
     "label": "プロセス",
@@ -1109,29 +1100,8 @@
   "update.time": {
     "label": "時刻"
   },
-  "update.channel.stable": {
-    "label": "安定版"
-  },
-  "update.channel.rc": {
-    "label": "RC"
-  },
-  "update.channel.edge": {
-    "label": "Edge"
-  },
-  "update.channel.dev": {
-    "label": "Dev"
-  },
-  "update.process.hyprsunset": {
-    "label": "Hyprsunset"
-  },
   "update.process.shell": {
     "label": "シェル"
-  },
-  "update.config.hyprland": {
-    "label": "Hyprland"
-  },
-  "update.config.hyprsunset": {
-    "label": "Hyprsunset"
   },
   "update.config.plymouth": {
     "label": "Plymouth"
